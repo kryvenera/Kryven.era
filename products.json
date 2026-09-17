@@ -1,0 +1,58 @@
+[
+  {
+    "id": "1",
+    "name": "Kryven Shadow Tee",
+    "price": 799,
+    "mrp": 1299,
+    "rating": 4.8,
+    "reviews": 128,
+    "fit": "Oversized",
+    "color": "Black",
+    "images": [
+      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1583743814966-8936f37f5c94?auto=format&fit=crop&w=900&q=85"
+    ]
+  },
+  {
+    "id": "2",
+    "name": "Silverline Essential",
+    "price": 899,
+    "mrp": 1499,
+    "rating": 4.7,
+    "reviews": 96,
+    "fit": "Regular",
+    "color": "White",
+    "images": [
+      "https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&w=900&q=85"
+    ]
+  },
+  {
+    "id": "3",
+    "name": "Classic Era Tee",
+    "price": 749,
+    "mrp": 1199,
+    "rating": 4.6,
+    "reviews": 74,
+    "fit": "Regular",
+    "color": "Black",
+    "images": [
+      "https://images.unsplash.com/photo-1583743814966-8936f37f5c94?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1603252109303-2751441dd157?auto=format&fit=crop&w=900&q=85"
+    ]
+  },
+  {
+    "id": "4",
+    "name": "Beyond Limits Tee",
+    "price": 999,
+    "mrp": 1599,
+    "rating": 4.9,
+    "reviews": 51,
+    "fit": "Oversized",
+    "color": "Silver",
+    "images": [
+      "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=85"
+    ]
+  }
+]
