@@ -1,2 +1,6 @@
-// Put your WhatsApp number here with country code, e.g. 919876543210
-window.KE_WHATSAPP="919999999999";
+window.KRYVEN_CONFIG = {
+  whatsappNumber: "919999999999",
+  supportEmail: "kryvenera@gmail.com",
+  currency: "₹",
+  adminPassword: "CHANGE-ME-1234"
+};
