@@ -1,5 +1,28 @@
-KRYVEN ERA — Vercel-ready front-end prototype.
+# KRYVEN ERA — Luxury Storefront
 
-Included: Shop, Product, Cart, Checkout, Account, Customer Care and Admin pages; black/white/silver design; supplied logo; S/M/L/XL/XXL availability with unavailable sizes disabled/light-gray; drag/swipe product viewer; COD and UPI/Online Payment choices; optional voucher; order confirmation; order tracking; customer details; admin order details and status; delivered-order rating display.
+This is a multi-page static prototype based on the uploaded reference video's dark editorial/luxury mood, adapted to the supplied KRYVEN ERA logo.
 
-Important: this prototype stores data in browser localStorage. For real production orders across devices, add a secure database/backend and authenticated admin API. Real UPI payments also need a payment gateway. Never put private phone numbers, API keys, payment secrets or admin passwords in public HTML/JS.
+Pages:
+- index.html — home
+- shop.html — collection
+- product.html — product detail
+- cart.html — bag
+- checkout.html — checkout
+- customer-details.html — saved customer details
+- wishlist.html — wishlist
+- orders.html — order tracking
+- customer-care.html — support
+- admin.html — demo admin panel
+
+Product sizes: S, M, L, XL, XXL.
+The demo stores cart/customer/order/admin data in browser localStorage.
+
+Important for production:
+- Add real authentication for admin.
+- Add a real database/backend for customer details and orders.
+- Connect a payment provider.
+- Replace product-placeholder.svg and product data with your real product photos.
+- Update customer-care contact details before publishing.
+
+Deployment:
+Upload the whole folder to Vercel/GitHub. Keep index.html at the root.
