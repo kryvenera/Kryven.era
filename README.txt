@@ -1,20 +1,35 @@
-KRYVEN ERA UPDATED WEBSITE
+KRYVEN ERA — READY-TO-UPLOAD STOREFRONT
 
-Replace the old files in the same GitHub repository with these files.
+FILES
+- index.html        Main storefront
+- styles.css        Luxury black/silver/gold UI
+- app.js            Store logic, bag, wishlist, checkout, 3D view, reviews, barcode search
+- admin.html        Owner admin panel
+- admin.js          Admin settings/catalog/orders/customer/review tools
+- assets/design-reference.png  Generated visual reference
 
-Admin:
-Open /admin.html. Default password: CHANGE-ME-1234
-Change it in config.js before publishing.
+DEPLOY TO VERCEL
+1. Upload the CONTENTS of this folder (not the outer folder) to your GitHub repository.
+2. Make sure index.html is in the repository root.
+3. Import/connect that GitHub repository in Vercel.
+4. Vercel should detect the static site automatically.
+5. Open /admin.html for the admin panel.
 
-WhatsApp:
-Set your full Indian number in Admin or config.js, e.g. 9198XXXXXXXX (no +).
+ADMIN
+Default demo PIN: KRYVEN26
+Change it from Website editor > Admin PIN.
 
-Orders:
-Checkout saves orders in the browser and gives Send Order on WhatsApp and Send Order by Email buttons.
-Automatic server-side email delivery still needs an email/backend service.
+IMPORTANT PRODUCTION NOTE
+This is a front-end/static build. Data is stored in the browser localStorage, so admin orders/settings are local to that browser/device. A real multi-device store needs a backend/database plus server-side admin authentication and a payment gateway. The UI hooks are already structured so that backend integration can be added later.
 
-Admin editing:
-Product title, description, price, photo URLs, sizes, colours and WhatsApp/email settings can be changed from the admin page.
-This browser-only admin uses localStorage; it is not a secure cross-device database. A real private admin system needs a backend/database.
+PAYMENTS
+COD / UPI / Credit-Debit Card / Net Banking can be toggled in Admin > Payments. Actual online collection requires payment-provider credentials and server-side verification.
 
-Do not delete the Vercel project. Commit these files to the same connected GitHub repository so Vercel redeploys the existing project.
+BARCODE
+The storefront search box accepts product barcodes. If the browser supports BarcodeDetector, the small barcode button can use the device camera; otherwise enter the barcode manually.
+
+REVIEWS
+Customer reviews are intended to unlock after an order is marked Delivered in admin. Customers can attach up to 4 photos.
+
+HERO VIDEO
+Replace the hero video URL in Admin > Website editor. A temporary sample video is included by URL so the landing page is not blank.
