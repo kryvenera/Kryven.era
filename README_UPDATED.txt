@@ -1,14 +1,19 @@
-KRYVEN ERA — CHECKOUT / CUSTOMER CARE UPDATE
+KRYVEN ERA — UPDATED WEBSITE FILES
 
-Changes in this build:
-1. Checkout is a dedicated checkout.html page instead of a modal.
-2. Customer details icon opens customer-details.html.
-3. Customer-care ? icon opens help-care.html; the support page has a direct WhatsApp button.
-4. Bag and wishlist icons open their dedicated pages.
-5. “How did you hear about Kryven Era?” is shown once on checkout and has no default selection; one source must be chosen.
-6. Checkout has two customer confirmation checkboxes. Both start unchecked every time. The order button stays disabled until both are checked and a discovery source is selected. “Thanks for submitting” appears after both confirmations are checked.
-7. The UPI flow no longer has an “I completed the payment” button. It opens the UPI intent and shows a payment-verification state. A real payment gateway/webhook is required to mark UPI as paid automatically; the static browser cannot verify bank settlement.
-8. Reviews remain open to customers without a prior order.
-9. Product 3D viewer is removed from product detail.
-10. Hero video can use YouTube or a direct MP4; playback is one-time rather than looping.
-11. Admin editor keeps product, website, social, promo-code and payment controls.
+Replace the matching files in your existing website with these updated files. Keep your existing styles.css.
+
+Changes included:
+- Duplicate product protection: identical product entries are collapsed by product name.
+- T-shirt category cover no longer reuses the same T-shirt listing photo.
+- Admin panel link removed from the customer-facing footer.
+- Help Center moved to a ? icon beside Customer Details in the header.
+- Admin editor expanded for products, website/hero, YouTube or MP4 background video, local video upload, social links, terms checkbox text, promo codes, payments, reviews, customers and orders.
+- Promo codes are now fully editable in admin (percentage/fixed value, minimum subtotal, expiry, active/inactive).
+- Facebook added to discovery/source choices and footer social links.
+- Order cannot be placed until the customer manually ticks the confirmation checkbox; it starts unchecked every time.
+- Ratings/reviews can be submitted without a previous order.
+- 3D product view and Three.js references removed.
+- Hero background supports YouTube links and direct MP4 URLs; playback is non-looping.
+- Uploaded hero videos use browser IndexedDB on the same browser. For all customer devices, use a public YouTube URL or hosted MP4 URL/storage backend.
+
+Admin page is intentionally not linked from the customer footer and is marked noindex. Open admin.html directly.
