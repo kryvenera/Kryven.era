@@ -1,28 +1,26 @@
-# KRYVEN ERA — Luxury Storefront
+# Kryven ErA — cinematic multi-page storefront
 
-This is a multi-page static prototype based on the uploaded reference video's dark editorial/luxury mood, adapted to the supplied KRYVEN ERA logo.
+Inspired by the uploaded reference video: dark luxury, editorial typography, product-first motion, depth and minimal navigation.
 
-Pages:
-- index.html — home
-- shop.html — collection
-- product.html — product detail
-- cart.html — bag
-- checkout.html — checkout
-- customer-details.html — saved customer details
-- wishlist.html — wishlist
-- orders.html — order tracking
-- customer-care.html — support
-- admin.html — demo admin panel
+## Separate site/page entry points
+- `index.html` — cinematic landing / brand intro
+- `pages/shop.html` — collection / catalog
+- `pages/product.html` — product detail + touch/drag 360° interaction
+- `pages/customize.html` — custom studio
+- `pages/help.html` — customer concierge chat
+- `pages/checkout.html` — checkout + UPI demo flow
+- `pages/admin.html` — admin controls demo
 
-Product sizes: S, M, L, XL, XXL.
-The demo stores cart/customer/order/admin data in browser localStorage.
+## Included from earlier Kryven ErA requests
+- Premium welcome voice using browser speech synthesis
+- Premium dark/cinematic sound-ready interaction structure
+- Customer help chat UI
+- Advanced customization UI
+- Product title, description, size, price and discount
+- Touch/drag 360° product interaction (CSS-based demo)
+- Recommendations below the product experience
+- UPI checkout flow + editable UPI/QR settings in admin demo
+- Intro/ad placement designed to display once per session
 
-Important for production:
-- Add real authentication for admin.
-- Add a real database/backend for customer details and orders.
-- Connect a payment provider.
-- Replace product-placeholder.svg and product data with your real product photos.
-- Update customer-care contact details before publishing.
-
-Deployment:
-Upload the whole folder to Vercel/GitHub. Keep index.html at the root.
+## Production integrations still needed
+Real payment auto-confirmation should use a payment gateway webhook/API. Realistic 3D garments should use GLB/GLTF product models or image sequences. Customer chat, orders, inventory and admin auth should be backed by your production database/API.

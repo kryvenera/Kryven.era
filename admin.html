@@ -1,17 +1,1 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kryven Era — Admin Panel</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <div id="toast" class="toast"></div>
-  <main id="adminApp"></main>
-  <script type="module" src="admin.js"></script>
-</body>
-</html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin — Kryven ErA</title><link rel="stylesheet" href="../assets/style.css"></head><body><header class="nav"><a class="brand" href="../index.html"><span>KRYVEN</span><b>ErA</b></a><div class="nav-actions"><a href="shop.html">STORE</a></div></header><main class="page"><div class="page-head"><div><span class="micro">KRYVEN ErA / PRIVATE CONSOLE</span><h1>CONTROL<br>CENTER.</h1></div></div><div class="admin-grid"><section class="admin-card"><h3>UPI SETTINGS</h3><input id="upi" placeholder="your-upi@bank"><input id="qrurl" placeholder="QR image URL"><button class="pill primary" id="savePay">SAVE PAYMENT SETTINGS</button></section><section class="admin-card"><h3>PRODUCT</h3><input value="Obsidian Tee"><input value="2499"><textarea rows="5">Heavyweight cotton tee with sculpted silhouette.</textarea><button class="pill primary">SAVE PRODUCT</button></section><section class="admin-card"><h3>ADS</h3><div class="status">Show once per session: ON</div><p class="muted" style="font-size:12px">Use this area to manage the single intro/ad placement requested for your production build.</p><button class="pill">EDIT ADS</button></section></div></main><script src="../assets/app.js"></script><script>document.getElementById('savePay').onclick=()=>{localStorage.setItem('kryvenUPI',document.getElementById('upi').value);localStorage.setItem('kryvenQR',document.getElementById('qrurl').value);toast('Payment settings saved locally for demo')};</script><div class="toast"></div></body></html>
