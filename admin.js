@@ -1,3 +1,8 @@
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const SUPABASE_URL = 'https://iisezaptudifgwkjxnkh.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_oGorfrDciMl6GGOllbTjfg_Sr3YzDsH';
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const SUPABASE_TABLE = 'orders';
 const KEY='kryven-era-state-v3';
 const P='https://images.unsplash.com/photo-';
 const fallback={settings:{brand:'KRYVEN ERA',tagline:'WEAR YOUR ERA',heroTitle:'OWN THE NIGHT.',heroText:'Luxury streetwear engineered for presence.',heroVideo:'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',backgroundVideo:'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',backgroundVideoEnabled:false,whatsapp:'7036421785',upi:'kryvenera@upi',adminPin:'KRYVEN26',currency:'₹',shipping:0,payments:{cod:true,upi:true,card:true,bank:false},deliveryNote:'Free shipping on eligible orders',supportText:'Mon–Sat · 10 AM–7 PM'},products:[{id:'KE001',name:'Kryven Era Logo Tee',category:'T-Shirts',price:1299,mrp:1999,discount:'35% OFF',rating:4.8,reviews:124,barcode:'890100000001',images:[P+'1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1000&q=85'],sizes:{S:true,M:true,L:true,XL:true,XXL:false},colors:['Black','White'],description:'Oversized premium-cotton tee with a minimal metallic K mark.',features:['100% premium cotton','Oversized fit'],stock:18},{id:'KE002',name:'Kryven Signature Hoodie',category:'Hoodies',price:2499,mrp:3199,discount:'22% OFF',rating:4.7,reviews:88,barcode:'890100000002',images:[P+'1556821840-3a63f95609a7?auto=format&fit=crop&w=1000&q=85'],sizes:{S:true,M:true,L:true,XL:false,XXL:true},colors:['Black'],description:'Premium fleece hoodie with structured shoulders.',features:['480 GSM fleece','Drop shoulder'],stock:9},{id:'KE003',name:'Kryven Era Cargo Pants',category:'Pants',price:1999,mrp:2599,discount:'23% OFF',rating:4.6,reviews:67,barcode:'890100000003',images:[P+'1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=85'],sizes:{S:false,M:true,L:true,XL:true,XXL:true},colors:['Black'],description:'Tapered cargo pants with utility pockets.',features:['Utility pocket system','Tapered leg'],stock:14},{id:'KE004',name:'Kryven Windcheater Jacket',category:'Jackets',price:2799,mrp:4299,discount:'35% OFF',rating:4.5,reviews:49,barcode:'890100000004',images:[P+'1551028719-00167b16eac5?auto=format&fit=crop&w=1000&q=85'],sizes:{S:true,M:true,L:true,XL:true,XXL:true},colors:['Black','Silver'],description:'Lightweight shell jacket with reflective details.',features:['Lightweight shell','Reflective trims'],stock:22},{id:'KE005',name:'Kryven Era Cap',category:'Accessories',price:999,mrp:1299,discount:'23% OFF',rating:4.4,reviews:31,barcode:'890100000005',images:[P+'1521369909029-2afed882baee?auto=format&fit=crop&w=1000&q=85'],sizes:{S:true,M:true,L:false,XL:false,XXL:false},colors:['Black','Gold'],description:'Structured 6-panel cap with embroidered K mark.',features:['Cotton twill','Structured crown'],stock:30}],cart:[],wishlist:[],profile:{},orders:[],searches:{},reviews:[]};
@@ -7,6 +12,26 @@ function save(){localStorage.setItem(KEY,JSON.stringify(state));toast('Changes s
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function money(n){return `${state.settings.currency}${Number(n||0).toLocaleString('en-IN')}`}
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000)}
+async function loadCloudOrders(){
+  try{
+    const {data,error}=await supabase.from(SUPABASE_TABLE).select('ID, customer name, address, product name, customer number, product price, product size').order('ID',{ascending:false});
+    if(error) throw error;
+    const cloudOrders=(data||[]).map(row=>{
+      try{return JSON.parse(row['product name'])}catch{return {id:String(row.ID),createdAt:new Date(Number(row.ID)||Date.now()).toISOString(),customer:{name:row['customer name']||'',phone:row['customer number']||'',email:'',address:row.address||'',city:'',pincode:''},items:[],subtotal:Number(row['product price']||0),discount:0,total:Number(row['product price']||0),payment:'cod',status:'Placed',referralSource:''}}
+    });
+    const localById=new Map((state.orders||[]).map(o=>[o.id,o]));
+    cloudOrders.forEach(o=>localById.set(o.id,o));
+    state.orders=[...localById.values()].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+    localStorage.setItem(KEY,JSON.stringify(state));
+  }catch(e){console.warn('Supabase order load failed:',e);}
+}
+
+function watchCloudOrders(){
+  supabase.channel('kryven-orders-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:SUPABASE_TABLE},()=>loadCloudOrders().then(()=>{if(isAuthed())renderBody()}))
+    .subscribe();
+}
+
 function app(){document.getElementById('adminApp').innerHTML=`<div class="admin-shell"><div class="admin-top"><div class="container admin-nav"><div class="logo"><span class="logo-mark"></span><span class="logo-text">KRYVEN ERA<small>/ ADMIN CONSOLE</small></span></div><div class="admin-actions"><a class="btn ghost" href="index.html">View store</a><button class="btn" onclick="exportData()">Export data</button></div></div></div><div id="adminBody" class="container"></div></div>`;renderBody()}
 function isAuthed(){return sessionStorage.getItem('ke-admin-auth')==='1'}
 function login(){document.getElementById('adminBody').innerHTML=`<div class="locked"><div class="locked-card"><div class="logo" style="justify-content:center"><span class="logo-mark"></span><span>KRYVEN ERA</span></div><h2 style="font-family:'Playfair Display',Georgia,serif">Admin access</h2><p class="muted">Only the store owner should use this console. Enter your admin PIN.</p><div class="field"><label>Admin PIN</label><input id="pin" type="password" placeholder="Enter PIN"/></div><button class="btn primary" style="width:100%;margin-top:12px" onclick="auth()">Unlock panel</button><div class="admin-note" style="margin-top:12px">Default demo PIN: KRYVEN26 · Change it in Settings.</div></div></div>`}
@@ -43,4 +68,4 @@ function searchPanel(){const entries=Object.entries(state.searches).sort((a,b)=>
 function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kryven-era-data.json';a.click()}
 function exportOrders(){const head=['Order ID','Date','Customer','Phone','Address','Total','Payment','Found via','Status'];const rows=state.orders.map(o=>[o.id,o.createdAt,o.customer.name,o.customer.phone,`${o.customer.address}, ${o.customer.city}, ${o.customer.pincode}`,o.total,o.payment,o.referralSource||'',o.status]);const csv=[head,...rows].map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\n');const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kryven-era-orders.csv';a.click()}
 window.exportData=exportData;window.exportOrders=exportOrders;
-app();
+loadCloudOrders().finally(()=>{app();watchCloudOrders()});

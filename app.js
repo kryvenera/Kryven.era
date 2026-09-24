@@ -1,3 +1,11 @@
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// Supabase connection — only the Project URL and Publishable key are used in the browser.
+const SUPABASE_URL = 'https://iisezaptudifgwkjxnkh.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_oGorfrDciMl6GGOllbTjfg_Sr3YzDsH';
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const SUPABASE_TABLE = 'orders';
+
 const IMG = {
   hero: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=2200&q=85',
   tshirt: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1000&q=85',
@@ -120,7 +128,31 @@ window.openSupport=openSupport;
 function openCheckout(){if(!state.cart.length){toast('Your bag is empty');return}const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0);openModal(`<div class="modal-top"><div><div class="eyebrow">Checkout</div><h3 style="margin:0;font-family:'Playfair Display',Georgia,serif">Complete your order</h3></div><button class="drawer-close" onclick="closeModal()">×</button></div><div class="checkout-grid"><div class="checkout-card"><div class="form-section"><h4>Shipping details</h4><div class="form-grid"><div class="field"><label>Name</label><input id="coName" value="${esc(state.profile.name)}" required></div><div class="field"><label>Phone</label><input id="coPhone" value="${esc(state.profile.phone)}" required></div><div class="field" style="grid-column:1/-1"><label>Address</label><input id="coAddress" value="${esc(state.profile.address)}" required></div><div class="field"><label>City</label><input id="coCity" value="${esc(state.profile.city)}" required></div><div class="field"><label>Pincode</label><input id="coPin" value="${esc(state.profile.pincode)}" required></div></div></div><div class="form-section"><h4>Discount code <span class="muted" style="font-size:11px">optional</span></h4><div style="display:flex;gap:8px"><input id="coupon" style="flex:1" placeholder="Enter code"><button class="btn" onclick="applyCheckoutCoupon()">Apply</button></div><div id="couponMsg" class="muted" style="margin-top:8px;font-size:11px"></div></div><div class="form-section"><h4>Payment method</h4><div class="payment-list">${state.settings.payments.cod?`<label class="toggle-row"><span>○ &nbsp; Cash on Delivery</span><input name="pay" type="radio" value="cod" checked></label>`:''}${state.settings.payments.upi?`<label class="toggle-row"><span>⌁ &nbsp; UPI · PhonePe / any UPI app</span><input name="pay" type="radio" value="upi" ${!state.settings.payments.cod?'checked':''}></label>`:''}${state.settings.payments.card?`<label class="toggle-row"><span>▣ &nbsp; Credit / Debit Card</span><input name="pay" type="radio" value="card" ${!state.settings.payments.cod&&!state.settings.payments.upi?'checked':''}></label>`:''}${state.settings.payments.bank?`<label class="toggle-row"><span>⌂ &nbsp; Net Banking</span><input name="pay" type="radio" value="bank"></label>`:''}</div>${state.settings.upi?`<p class="muted" style="font-size:11px;margin-top:10px">UPI ID: ${esc(state.settings.upi)}</p>`:''}</div></div><div class="summary-card"><h4 style="margin-top:0">Order summary</h4>${state.cart.map(x=>{const p=product(x.id);return `<div class="summary-row"><span>${esc(p.name)} × ${x.qty}<br><small class="muted">${x.size} · ${x.color}</small></span><span>${money(p.price*x.qty)}</span></div>`}).join('')}<div class="summary-row"><span>Subtotal</span><span id="sumSub">${money(sub)}</span></div><div class="summary-row"><span>Discount</span><span id="sumDisc">${money(0)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div class="summary-row"><b>Total</b><b id="sumTotal">${money(sub+state.settings.shipping)}</b></div><button class="btn primary" style="width:100%;margin-top:16px" onclick="placeOrder()">Continue to payment →</button></div></div>`)}
 window.applyCheckoutCoupon=()=>{const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0),d=discountAmount(sub,getDiscountCode());document.getElementById('couponMsg').textContent=d?'Coupon KRYVEN10 applied.': 'Use KRYVEN10 for 10% off in this demo.';document.getElementById('sumDisc').textContent='−'+money(d);document.getElementById('sumTotal').textContent=money(sub-d+state.settings.shipping)}
 window.placeOrder=()=>{const name=document.getElementById('coName').value.trim(),phone=document.getElementById('coPhone').value.trim(),address=document.getElementById('coAddress').value.trim(),city=document.getElementById('coCity').value.trim(),pincode=document.getElementById('coPin').value.trim();if(!name||!phone||!address||!city||!pincode){toast('Please fill all shipping details');return}const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0),discount=discountAmount(sub,getDiscountCode()),payment=document.querySelector('input[name=pay]:checked')?.value||'cod',source=localStorage.getItem('kryven-era-referral-source')||'',id='KE-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*900)+100);const order={id,createdAt:new Date().toISOString(),customer:{name,email:state.profile.email||'',phone,address,city,pincode},items:structuredClone(state.cart).map(x=>({...x,image:product(x.id)?.images?.[0]||''})),subtotal:sub,discount,total:sub-discount+state.settings.shipping,payment,status:'Placed',referralSource:source};if(payment==='upi'){showUPIPayment(order);return}finalizeOrder(order)};
-function finalizeOrder(order){state.orders.unshift(order);state.profile={name:order.customer.name,email:order.customer.email,phone:order.customer.phone,address:order.customer.address,city:order.customer.city,pincode:order.customer.pincode};state.cart=[];save();showPaymentSuccess(order.id,order.payment)}
+async function saveOrderToSupabase(order){
+  // Keeps the existing app unchanged while also putting the complete order into
+  // the Supabase table. The existing table columns are used as a simple envelope.
+  const row={
+    ID:Date.now(),
+    'customer name':order.customer.name||'',
+    address:`${order.customer.address||''}, ${order.customer.city||''}, ${order.customer.pincode||''}`,
+    'product name':JSON.stringify(order),
+    'customer number':order.customer.phone||'',
+    'product price':String(order.total??0),
+    'product size':(order.items||[]).map(x=>`${x.name||x.id||''} x${x.qty||1} ${x.size||''}`).join(' | ')
+  };
+  const {error}=await supabase.from(SUPABASE_TABLE).insert(row);
+  if(error){console.error('Supabase order save failed:',error);toast('Order saved on this device, but cloud sync failed.');return false}
+  return true;
+}
+
+async function finalizeOrder(order){
+  state.orders.unshift(order);
+  state.profile={name:order.customer.name,email:order.customer.email,phone:order.customer.phone,address:order.customer.address,city:order.customer.city,pincode:order.customer.pincode};
+  state.cart=[];
+  save();
+  await saveOrderToSupabase(order);
+  showPaymentSuccess(order.id,order.payment)
+}
 function showUPIPayment(order){
   const amount=order.total.toFixed(2),upi=encodeURIComponent(state.settings.upi||'kryvenera@upi'),brand=encodeURIComponent(state.settings.brand||'Kryven Era'),upiLink=`upi://pay?pa=${upi}&pn=${brand}&am=${amount}&cu=INR&tn=${encodeURIComponent('Kryven Era Order '+order.id)}`;
   openModal(`<div class="phonepe-checkout"><div class="upi-head"><div><span class="eyebrow">Secure UPI checkout</span><h2>Scan QR & Pay</h2></div><button class="drawer-close" onclick="closeModal()">×</button></div><div class="upi-card"><div class="upi-brand">UPI</div><div class="upi-amount">${money(order.total)}</div><div class="upi-id">To: <b>${esc(state.settings.upi||'kryvenera@upi')}</b></div><div id="upiQr" style="width:220px;height:220px;margin:18px auto;background:#fff;border-radius:14px;padding:10px;display:flex;align-items:center;justify-content:center"><span style="color:#111;font-size:12px">Loading QR…</span></div><a class="btn upi-pay" href="${upiLink}">Open PhonePe / UPI App →</a><div id="upiStatus" class="muted" style="font-size:12px;margin-top:14px;text-align:center">Waiting for payment confirmation…</div><p class="muted" style="font-size:11px;margin-top:10px;text-align:center">Confirmation is automatic when your connected UPI gateway/backend reports the transaction as paid.</p></div></div>`);
