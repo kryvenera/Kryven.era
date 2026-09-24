@@ -1,7 +1,7 @@
 // Direct REST connection to Supabase. No SDK/global `supabase` variable is required.
 const SUPABASE_URL = 'https://iisezaptudifgwkjxnkh.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_oGorfrDciMl6GGOllbTjfg_Sr3YzDsH';
-const SUPABASE_TABLE = 'orders';
+const SUPABASE_TABLE = document.querySelector('meta[name="supabase-table"]')?.content?.trim() || 'Allow public order insert';
 const SUPABASE_REST = `${SUPABASE_URL}/rest/v1/${encodeURIComponent(SUPABASE_TABLE)}`;
 function supabaseHeaders(extra={}){return Object.assign({'apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':`Bearer ${SUPABASE_PUBLISHABLE_KEY}`,'Content-Type':'application/json'},extra)}
 async function supabaseRequest(url=SUPABASE_REST,options={}){
