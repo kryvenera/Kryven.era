@@ -17,7 +17,7 @@ async function loadCloudOrders(){
     const {data,error}=await supabase.from(SUPABASE_TABLE).select('*').order('id',{ascending:false});
     if(error) throw error;
     const cloudOrders=(data||[]).map(row=>{
-      try{return JSON.parse(row['product name'])}catch{return {id:String(row.id),createdAt:new Date(Number(row.id)||Date.now()).toISOString(),customer:{name:row['customer name']||'',phone:row['customer number']||'',email:'',address:row.address||'',city:'',pincode:''},items:[],subtotal:Number(row['product price']||0),discount:0,total:Number(row['product price']||0),payment:'cod',status:'Placed',referralSource:''}}
+      try{return JSON.parse(row['Product name'])}catch{return {id:String(row.id),createdAt:new Date(Number(row.id)||Date.now()).toISOString(),customer:{name:row['Customer name']||'',phone:row['Customer number']||'',email:'',address:row['Address']||'',city:'',pincode:''},items:[],subtotal:Number(row['Product price']||0),discount:0,total:Number(row['Product price']||0),payment:'cod',status:'Placed',referralSource:''}}
     });
     const localById=new Map((state.orders||[]).map(o=>[o.id,o]));
     cloudOrders.forEach(o=>localById.set(o.id,o));

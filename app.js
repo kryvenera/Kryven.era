@@ -133,12 +133,12 @@ async function saveOrderToSupabase(order){
   // the Supabase table. The existing table columns are used as a simple envelope.
   const row={
     id:Date.now(),
-    'customer name':order.customer.name||'',
-    address:`${order.customer.address||''}, ${order.customer.city||''}, ${order.customer.pincode||''}`,
-    'product name':JSON.stringify(order),
-    'customer number':order.customer.phone||'',
-    'product price':String(order.total??0),
-    'product size':(order.items||[]).map(x=>`${x.name||x.id||''} x${x.qty||1} ${x.size||''}`).join(' | ')
+    'Customer name':order.customer.name||'',
+    'Address':`${order.customer.address||''}, ${order.customer.city||''}, ${order.customer.pincode||''}`,
+    'Product name':JSON.stringify(order),
+    'Customer number':order.customer.phone||'',
+    'Product price':String(order.total??0),
+    'Product size':(order.items||[]).map(x=>`${x.name||x.id||''} x${x.qty||1} ${x.size||''}`).join(' | ')
   };
   const {error}=await supabase.from(SUPABASE_TABLE).insert(row);
   if(error){console.error('Supabase order save failed:',error);toast('Cloud order save failed. Check Supabase table/policies.');return false}
