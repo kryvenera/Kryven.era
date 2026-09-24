@@ -14,7 +14,7 @@ function money(n){return `${state.settings.currency}${Number(n||0).toLocaleStrin
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000)}
 async function loadCloudOrders(){
   try{
-    const {data,error}=await supabase.from(SUPABASE_TABLE).select('ID, customer name, address, product name, customer number, product price, product size').order('ID',{ascending:false});
+    const {data,error}=await supabase.from(SUPABASE_TABLE).select('*').order('ID',{ascending:false});
     if(error) throw error;
     const cloudOrders=(data||[]).map(row=>{
       try{return JSON.parse(row['product name'])}catch{return {id:String(row.ID),createdAt:new Date(Number(row.ID)||Date.now()).toISOString(),customer:{name:row['customer name']||'',phone:row['customer number']||'',email:'',address:row.address||'',city:'',pincode:''},items:[],subtotal:Number(row['product price']||0),discount:0,total:Number(row['product price']||0),payment:'cod',status:'Placed',referralSource:''}}
@@ -30,6 +30,7 @@ function watchCloudOrders(){
   supabase.channel('kryven-orders-live')
     .on('postgres_changes',{event:'*',schema:'public',table:SUPABASE_TABLE},()=>loadCloudOrders().then(()=>{if(isAuthed())renderBody()}))
     .subscribe();
+  setInterval(()=>loadCloudOrders().then(()=>{if(isAuthed() && active==='orders')renderBody()}),5000);
 }
 
 function app(){document.getElementById('adminApp').innerHTML=`<div class="admin-shell"><div class="admin-top"><div class="container admin-nav"><div class="logo"><span class="logo-mark"></span><span class="logo-text">KRYVEN ERA<small>/ ADMIN CONSOLE</small></span></div><div class="admin-actions"><a class="btn ghost" href="index.html">View store</a><button class="btn" onclick="exportData()">Export data</button></div></div></div><div id="adminBody" class="container"></div></div>`;renderBody()}
@@ -68,4 +69,5 @@ function searchPanel(){const entries=Object.entries(state.searches).sort((a,b)=>
 function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kryven-era-data.json';a.click()}
 function exportOrders(){const head=['Order ID','Date','Customer','Phone','Address','Total','Payment','Found via','Status'];const rows=state.orders.map(o=>[o.id,o.createdAt,o.customer.name,o.customer.phone,`${o.customer.address}, ${o.customer.city}, ${o.customer.pincode}`,o.total,o.payment,o.referralSource||'',o.status]);const csv=[head,...rows].map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\n');const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kryven-era-orders.csv';a.click()}
 window.exportData=exportData;window.exportOrders=exportOrders;
-loadCloudOrders().finally(()=>{app();watchCloudOrders()});
+loadCloudOrders().finally(()=>{app();
+loadCloudOrders().then(watchCloudOrders);watchCloudOrders()});

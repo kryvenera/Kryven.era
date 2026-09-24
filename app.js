@@ -141,16 +141,17 @@ async function saveOrderToSupabase(order){
     'product size':(order.items||[]).map(x=>`${x.name||x.id||''} x${x.qty||1} ${x.size||''}`).join(' | ')
   };
   const {error}=await supabase.from(SUPABASE_TABLE).insert(row);
-  if(error){console.error('Supabase order save failed:',error);toast('Order saved on this device, but cloud sync failed.');return false}
+  if(error){console.error('Supabase order save failed:',error);toast('Cloud order save failed. Check Supabase table/policies.');return false}
   return true;
 }
 
 async function finalizeOrder(order){
+  const cloudSaved=await saveOrderToSupabase(order);
+  if(!cloudSaved)return;
   state.orders.unshift(order);
   state.profile={name:order.customer.name,email:order.customer.email,phone:order.customer.phone,address:order.customer.address,city:order.customer.city,pincode:order.customer.pincode};
   state.cart=[];
   save();
-  await saveOrderToSupabase(order);
   showPaymentSuccess(order.id,order.payment)
 }
 function showUPIPayment(order){
