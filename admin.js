@@ -14,10 +14,10 @@ function money(n){return `${state.settings.currency}${Number(n||0).toLocaleStrin
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000)}
 async function loadCloudOrders(){
   try{
-    const {data,error}=await supabase.from(SUPABASE_TABLE).select('*').order('ID',{ascending:false});
+    const {data,error}=await supabase.from(SUPABASE_TABLE).select('*').order('id',{ascending:false});
     if(error) throw error;
     const cloudOrders=(data||[]).map(row=>{
-      try{return JSON.parse(row['product name'])}catch{return {id:String(row.ID),createdAt:new Date(Number(row.ID)||Date.now()).toISOString(),customer:{name:row['customer name']||'',phone:row['customer number']||'',email:'',address:row.address||'',city:'',pincode:''},items:[],subtotal:Number(row['product price']||0),discount:0,total:Number(row['product price']||0),payment:'cod',status:'Placed',referralSource:''}}
+      try{return JSON.parse(row['product name'])}catch{return {id:String(row.id),createdAt:new Date(Number(row.id)||Date.now()).toISOString(),customer:{name:row['customer name']||'',phone:row['customer number']||'',email:'',address:row.address||'',city:'',pincode:''},items:[],subtotal:Number(row['product price']||0),discount:0,total:Number(row['product price']||0),payment:'cod',status:'Placed',referralSource:''}}
     });
     const localById=new Map((state.orders||[]).map(o=>[o.id,o]));
     cloudOrders.forEach(o=>localById.set(o.id,o));

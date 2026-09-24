@@ -132,7 +132,7 @@ async function saveOrderToSupabase(order){
   // Keeps the existing app unchanged while also putting the complete order into
   // the Supabase table. The existing table columns are used as a simple envelope.
   const row={
-    ID:Date.now(),
+    id:Date.now(),
     'customer name':order.customer.name||'',
     address:`${order.customer.address||''}, ${order.customer.city||''}, ${order.customer.pincode||''}`,
     'product name':JSON.stringify(order),
