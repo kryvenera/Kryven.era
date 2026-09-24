@@ -1,11 +1,3 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
-// Supabase connection — only the Project URL and Publishable key are used in the browser.
-const SUPABASE_URL = 'https://iisezaptudifgwkjxnkh.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_oGorfrDciMl6GGOllbTjfg_Sr3YzDsH';
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-const SUPABASE_TABLE = 'orders';
-
 const IMG = {
   hero: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=2200&q=85',
   tshirt: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1000&q=85',
@@ -129,30 +121,17 @@ function openCheckout(){if(!state.cart.length){toast('Your bag is empty');return
 window.applyCheckoutCoupon=()=>{const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0),d=discountAmount(sub,getDiscountCode());document.getElementById('couponMsg').textContent=d?'Coupon KRYVEN10 applied.': 'Use KRYVEN10 for 10% off in this demo.';document.getElementById('sumDisc').textContent='−'+money(d);document.getElementById('sumTotal').textContent=money(sub-d+state.settings.shipping)}
 window.placeOrder=()=>{const name=document.getElementById('coName').value.trim(),phone=document.getElementById('coPhone').value.trim(),address=document.getElementById('coAddress').value.trim(),city=document.getElementById('coCity').value.trim(),pincode=document.getElementById('coPin').value.trim();if(!name||!phone||!address||!city||!pincode){toast('Please fill all shipping details');return}const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0),discount=discountAmount(sub,getDiscountCode()),payment=document.querySelector('input[name=pay]:checked')?.value||'cod',source=localStorage.getItem('kryven-era-referral-source')||'',id='KE-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*900)+100);const order={id,createdAt:new Date().toISOString(),customer:{name,email:state.profile.email||'',phone,address,city,pincode},items:structuredClone(state.cart).map(x=>({...x,image:product(x.id)?.images?.[0]||''})),subtotal:sub,discount,total:sub-discount+state.settings.shipping,payment,status:'Placed',referralSource:source};if(payment==='upi'){showUPIPayment(order);return}finalizeOrder(order)};
 async function saveOrderToSupabase(order){
-  // Keeps the existing app unchanged while also putting the complete order into
-  // the Supabase table. The existing table columns are used as a simple envelope.
-  const row={
-    id:Date.now(),
-    'Customer name':order.customer.name||'',
-    'Address':`${order.customer.address||''}, ${order.customer.city||''}, ${order.customer.pincode||''}`,
-    'Product name':JSON.stringify(order),
-    'Customer number':order.customer.phone||'',
-    'Product price':String(order.total??0),
-    'Product size':(order.items||[]).map(x=>`${x.name||x.id||''} x${x.qty||1} ${x.size||''}`).join(' | ')
-  };
-  const {error}=await supabase.from(SUPABASE_TABLE).insert(row);
-  if(error){console.error('Supabase order save failed:',error);toast('Cloud order save failed. Check Supabase table/policies.');return false}
-  return true;
+  try{
+    const row={id:Date.now(),'Customer name':order.customer.name||'','Address':`${order.customer.address||''}, ${order.customer.city||''}, ${order.customer.pincode||''}`,'Product name':JSON.stringify(order),'Customer number':order.customer.phone||'','Product price':String(order.total??0),'Product size':(order.items||[]).map(x=>`${x.name||x.id||''} x${x.qty||1} ${x.size||''}`).join(' | ')};
+    const {error}=await supabase.from(SUPABASE_TABLE).insert(row);
+    if(error){console.error('SUPABASE ORDER ERROR:',error);toast(`Order save failed: ${error.message||'Supabase error'}`);return false}
+    return true;
+  }catch(error){console.error('SUPABASE ORDER ERROR:',error);toast(`Order save failed: ${error.message||'Network error'}`);return false}
 }
-
 async function finalizeOrder(order){
   const cloudSaved=await saveOrderToSupabase(order);
   if(!cloudSaved)return;
-  state.orders.unshift(order);
-  state.profile={name:order.customer.name,email:order.customer.email,phone:order.customer.phone,address:order.customer.address,city:order.customer.city,pincode:order.customer.pincode};
-  state.cart=[];
-  save();
-  showPaymentSuccess(order.id,order.payment)
+  state.orders.unshift(order);state.profile={name:order.customer.name,email:order.customer.email,phone:order.customer.phone,address:order.customer.address,city:order.customer.city,pincode:order.customer.pincode};state.cart=[];save();showPaymentSuccess(order.id,order.payment)
 }
 function showUPIPayment(order){
   const amount=order.total.toFixed(2),upi=encodeURIComponent(state.settings.upi||'kryvenera@upi'),brand=encodeURIComponent(state.settings.brand||'Kryven Era'),upiLink=`upi://pay?pa=${upi}&pn=${brand}&am=${amount}&cu=INR&tn=${encodeURIComponent('Kryven Era Order '+order.id)}`;
