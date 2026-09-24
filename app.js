@@ -1,7 +1,7 @@
 // Direct REST connection to Supabase. No SDK/global `supabase` variable is required.
 const SUPABASE_URL = 'https://iisezaptudifgwkjxnkh.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_oGorfrDciMl6GGOllbTjfg_Sr3YzDsH';
-const SUPABASE_TABLE = document.querySelector('meta[name="supabase-table"]')?.content?.trim() || 'Allow public order insert';
+const SUPABASE_TABLE = 'Allow public order insert';
 const SUPABASE_REST = `${SUPABASE_URL}/rest/v1/${encodeURIComponent(SUPABASE_TABLE)}`;
 function supabaseHeaders(extra={}){return Object.assign({'apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':`Bearer ${SUPABASE_PUBLISHABLE_KEY}`,'Content-Type':'application/json'},extra)}
 async function supabaseRequest(url=SUPABASE_REST,options={}){
@@ -155,7 +155,7 @@ async function saveOrderToSupabase(order){
     const row={
       id:dbId,
       'Customer name':order.customer.name||'',
-      'Address':`${order.customer.address||''}, ${order.customer.city||''}, ${order.customer.pincode||''}`,
+      'Customer address':`${order.customer.address||''}, ${order.customer.city||''}, ${order.customer.pincode||''}`,
       'Product name':JSON.stringify(order),
       'Customer number':order.customer.phone||'',
       'Product price':String(order.total??0),

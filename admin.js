@@ -1,7 +1,7 @@
 // Direct REST connection to Supabase. No SDK/global `supabase` variable is required.
 const SUPABASE_URL = 'https://iisezaptudifgwkjxnkh.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_oGorfrDciMl6GGOllbTjfg_Sr3YzDsH';
-const SUPABASE_TABLE = document.querySelector('meta[name="supabase-table"]')?.content?.trim() || 'Allow public order insert';
+const SUPABASE_TABLE = 'Allow public order insert';
 const SUPABASE_REST = `${SUPABASE_URL}/rest/v1/${encodeURIComponent(SUPABASE_TABLE)}`;
 function supabaseHeaders(extra={}){return Object.assign({'apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':`Bearer ${SUPABASE_PUBLISHABLE_KEY}`,'Content-Type':'application/json'},extra)}
 async function supabaseRequest(url=SUPABASE_REST,options={}){const res=await fetch(url,{...options,headers:supabaseHeaders(options.headers||{})});const text=await res.text();let data=null;try{data=text?JSON.parse(text):null}catch{}if(!res.ok){throw new Error(data?.message||data?.error_description||text||`HTTP ${res.status}`)}return data}
@@ -22,10 +22,10 @@ async function loadCloudOrders(){
       try{o=JSON.parse(row['Product name'])}catch{o={id:`KE-${new Date().getFullYear()}-${Math.floor(Math.random()*900+100)}`}}
       o=o||{};
       o.cloudRowId=row.id;
-      o.customer=o.customer||{name:row['Customer name']||'',phone:row['Customer number']||'',email:'',address:row['Address']||'',city:'',pincode:''};
+      o.customer=o.customer||{name:row['Customer name']||'',phone:row['Customer number']||'',email:'',address:row['Customer address']||'',city:'',pincode:''};
       if(!o.customer.name)o.customer.name=row['Customer name']||'';
       if(!o.customer.phone)o.customer.phone=row['Customer number']||'';
-      if(!o.customer.address)o.customer.address=row['Address']||'';
+      if(!o.customer.address)o.customer.address=row['Customer address']||'';
       if(o.total==null)o.total=Number(row['Product price']||0);
       if(o.subtotal==null)o.subtotal=Number(row['Product price']||0);
       if(!o.payment)o.payment='cod';
@@ -45,7 +45,7 @@ function watchCloudOrders(){
 async function updateCloudOrder(o){
   if(!o.cloudRowId)return true;
   try{
-    const row={id:Number(o.cloudRowId),'Customer name':o.customer?.name||'','Address':`${o.customer?.address||''}, ${o.customer?.city||''}, ${o.customer?.pincode||''}`,'Product name':JSON.stringify(o),'Customer number':o.customer?.phone||'','Product price':String(o.total??0),'Product size':(o.items||[]).map(x=>`${x.name||x.id||''} x${x.qty||1} ${x.size||''}`).join(' | ')};
+    const row={id:Number(o.cloudRowId),'Customer name':o.customer?.name||'','Customer address':`${o.customer?.address||''}, ${o.customer?.city||''}, ${o.customer?.pincode||''}`,'Product name':JSON.stringify(o),'Customer number':o.customer?.phone||'','Product price':String(o.total??0),'Product size':(o.items||[]).map(x=>`${x.name||x.id||''} x${x.qty||1} ${x.size||''}`).join(' | ')};
     await supabaseRequest(`${SUPABASE_REST}?id=eq.${encodeURIComponent(o.cloudRowId)}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(row)});
     return true;
   }catch(e){toast(`Cloud update failed: ${e.message||'Supabase error'}`);return false}
