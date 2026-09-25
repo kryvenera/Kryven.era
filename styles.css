@@ -32,7 +32,7 @@ a{color:inherit;text-decoration:none}button,input,textarea,select{font:inherit}b
 /* Final polish: restore the actual KRYVEN ERA logo image and mobile search behavior. */
 .logo-image{width:34px;height:34px;display:block;object-fit:cover;border-radius:9px;background:#090b0a;box-shadow:0 4px 14px rgba(0,0,0,.16);flex:0 0 auto}
 .search-wrap{transition:transform .24s ease,opacity .24s ease,max-width .24s ease}
-.search-wrap.search-hidden{opacity:0;transform:translateY(-14px);pointer-events:none}
+.search-wrap.search-hidden{opacity:0;transform:translateY(-24px);max-width:0!important;width:0!important;min-width:0!important;overflow:hidden;pointer-events:none;margin:0!important;padding:0!important}
 .product-page-swipe-stage{position:relative;overflow:hidden;touch-action:pan-y}
 .product-page-swipe-stage>img{display:block;width:100%;height:100%;object-fit:cover;user-select:none;-webkit-user-drag:none}
 @media(max-width:980px){

@@ -155,15 +155,34 @@ function bindMobileSearchAutoHide(){
   const bar=document.querySelector('.search-wrap');
   if(!bar)return;
   if(window.__keSearchScroll)window.removeEventListener('scroll',window.__keSearchScroll);
+  if(window.__keSearchTouchStart)window.removeEventListener('touchstart',window.__keSearchTouchStart);
+  if(window.__keSearchTouchEnd)window.removeEventListener('touchend',window.__keSearchTouchEnd);
   let last=window.scrollY||0;
+  let touchStartY=0;
+  const setHidden=(hidden)=>{
+    if(window.innerWidth<=980) bar.classList.toggle('search-hidden',hidden);
+    else bar.classList.remove('search-hidden');
+  };
   window.__keSearchScroll=()=>{
-    if(window.innerWidth>980){bar.classList.remove('search-hidden');last=window.scrollY||0;return;}
+    if(window.innerWidth>980){setHidden(false);last=window.scrollY||0;return;}
     const y=window.scrollY||0;
-    if(y>last+8 && y>70)bar.classList.add('search-hidden');
-    else if(y<last-6 || y<30)bar.classList.remove('search-hidden');
+    if(y>last+5 && y>18) setHidden(true);
+    else if(y<last-5 || y<=8) setHidden(false);
     last=y;
   };
+  window.__keSearchTouchStart=(e)=>{
+    if(window.innerWidth<=980 && e.touches?.length) touchStartY=e.touches[0].clientY;
+  };
+  window.__keSearchTouchEnd=(e)=>{
+    if(window.innerWidth>980 || !e.changedTouches?.length)return;
+    const dy=e.changedTouches[0].clientY-touchStartY;
+    if(dy<-18) setHidden(true);
+    else if(dy>18) setHidden(false);
+  };
   window.addEventListener('scroll',window.__keSearchScroll,{passive:true});
+  window.addEventListener('touchstart',window.__keSearchTouchStart,{passive:true});
+  window.addEventListener('touchend',window.__keSearchTouchEnd,{passive:true});
+  window.__keSearchScroll();
 }
 
 function render(){
