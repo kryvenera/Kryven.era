@@ -91,6 +91,17 @@ a{color:inherit;text-decoration:none}button,input,textarea,select{font:inherit}b
 }
 
 
+
+/* Floating header contrast: all header text/icons black except wishlist pink. */
+.header.floating-header .logo-text{color:#090b09!important;text-shadow:0 1px 8px rgba(255,255,255,.45)}
+.header.floating-header .logo-text small{color:#090b09!important}
+.header.floating-header .nav-links a{color:#090b09!important;text-shadow:0 1px 8px rgba(255,255,255,.45)}
+.header.floating-header .icon-btn{background:rgba(255,255,255,.55)!important;border-color:rgba(0,0,0,.18)!important;color:#090b09!important;box-shadow:0 5px 16px rgba(0,0,0,.10)}
+.header.floating-header .menu-lines i{background:#090b09!important}
+.header.floating-header .wishlist-btn{color:#ff4f87!important;border-color:rgba(255,79,135,.38)!important}
+.header.floating-header .wishlist-btn .badge{color:#090b09!important}
+.header.floating-header .customer-btn,.header.floating-header .bag-btn{color:#090b09!important}
+
 /* Menu + wishlist polish */
 .like.active{background:#ff4f87!important;border-color:#ff4f87!important;color:#fff!important;box-shadow:0 8px 22px rgba(255,79,135,.22)}
 .wishlist-btn.has-wishlist{color:#ff4f87!important}
