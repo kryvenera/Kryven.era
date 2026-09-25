@@ -35,7 +35,17 @@ async function supabaseRequest(url=SUPABASE_REST,options={}){
   if(!res.ok)throw new Error(data?.message||data?.error_description||text||`HTTP ${res.status}`);
   return data;
 }
-function load(){try{return JSON.parse(localStorage.getItem(KEY))||structuredClone(fallback)}catch{return structuredClone(fallback)}}
+const PIN_RESET_KEY = 'kryven-era-admin-pin-reset-v1';
+function load(){
+  let data;
+  try{data=JSON.parse(localStorage.getItem(KEY))||structuredClone(fallback)}catch{data=structuredClone(fallback)}
+  if(localStorage.getItem(PIN_RESET_KEY)!=='1'){
+    data.settings=data.settings||{};
+    data.settings.adminPin='KRYVEN26';
+    try{localStorage.setItem(KEY,JSON.stringify(data));localStorage.setItem(PIN_RESET_KEY,'1')}catch{}
+  }
+  return data;
+}
 let state=load(); let active='dashboard'; let selectedOrder=null;
 function save(){localStorage.setItem(KEY,JSON.stringify(state));toast('Saved')}
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
