@@ -208,4 +208,14 @@ function startBarcodeScan(){
   try{if(!('BarcodeDetector' in window)){toast('Barcode scanning is not supported in this browser.');return}const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e']});navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}}).then(async stream=>{const video=document.createElement('video');video.autoplay=true;video.muted=true;video.playsInline=true;video.className='scanner-video';document.body.appendChild(video);video.srcObject=stream;await video.play();const loop=async()=>{try{const codes=await detector.detect(video);if(codes.length){const value=codes[0].rawValue;stream.getTracks().forEach(t=>t.stop());video.remove();const input=document.getElementById('topSearch');if(input)input.value=value;search(value);return}}catch{}requestAnimationFrame(loop)};loop()}).catch(()=>toast('Camera permission denied. Enter the barcode manually.'))}catch{toast('Barcode scanning unavailable.')}}
 window.openModal=openModal;window.closeModal=closeModal;window.closeDrawer=closeDrawer;window.openMobileMenu=openMobileMenu;window.openBag=openBag;window.openCheckout=openCheckout;window.openProduct=openProduct;window.openCategory=openCategory;window.toggleWishlist=toggleWishlist;window.openWishlist=openWishlist;window.openProfile=openProfile;window.openSupport=openSupport;window.openTracking=openTracking;window.trackOrder=trackOrder;window.changeQty=changeQty;window.setMainImage=setMainImage;window.selectProductSize=selectProductSize;window.selectProductColor=selectProductColor;window.confirmAdd=id=>{addToBag(id,window.__selected?.size||'',window.__selected?.color||'');closeModal();openBag()};window.buyNow=id=>{addToBag(id,window.__selected?.size||'',window.__selected?.color||'');closeModal();openCheckout()};window.applyCheckoutCoupon=applyCheckoutCoupon;window.placeOrder=placeOrder;window.saveProfile=saveProfile;window.search=search;window.renderSearchOverlay=renderSearchOverlay;window.startBarcodeScan=startBarcodeScan;window.skipProfileGate=skipProfileGate;window.finishProfileGate=finishProfileGate;window.markPaymentVerificationPending=markPaymentVerificationPending;window.render=render;
 
-(async function boot(){await verifyCashfreeReturn();render();const noSeen=localStorage.getItem(PROFILE_SEEN_KEY)!=='1';if(noSeen&&document.body.dataset.page!=='admin')requestAnimationFrame(profileGate)})();
+(async function boot(){
+  // Always start a newly opened page at the top. This prevents Android/Chrome
+  // scroll restoration from placing the sticky header over the page title.
+  if('scrollRestoration' in history) history.scrollRestoration='manual';
+  window.scrollTo(0,0);
+  await verifyCashfreeReturn();
+  render();
+  requestAnimationFrame(()=>window.scrollTo(0,0));
+  const noSeen=localStorage.getItem(PROFILE_SEEN_KEY)!=='1';
+  if(noSeen&&document.body.dataset.page!=='admin')requestAnimationFrame(profileGate);
+})();
