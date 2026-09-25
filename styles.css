@@ -70,3 +70,8 @@ html.overlay-open, body.overlay-open{overflow:hidden;overscroll-behavior:none}
   .card-link{min-height:100%}
   .mobile-nav-drawer a{min-height:52px}
 }
+
+/* v5 navigation stability */
+.cat{display:block;color:inherit;text-decoration:none}
+.cat:focus-visible,.icon-btn:focus-visible,.mobile-menu:focus-visible,.card-link:focus-visible{outline:3px solid rgba(215,173,89,.55);outline-offset:3px}
+.drawer{z-index:220}.modal{z-index:230}.mobile-menu,.nav-actions .icon-btn{position:relative;z-index:45}
