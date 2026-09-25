@@ -165,4 +165,9 @@ function searchPanel(){const entries=Object.entries(state.searches||{}).sort((a,
 function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kryven-era-data.json';a.click()}
 function exportOrders(){const head=['Order ID','Created','Customer','Phone','Address','Expected arrival','Courier','Tracking','Total','Advance paid','Remaining due','Payment','Status'];const rows=state.orders.map(o=>[o.id,o.createdAt,o.customer?.name||'',o.customer?.phone||'',`${o.customer?.address||''}, ${o.customer?.city||''}, ${o.customer?.pincode||''}`,o.expectedDeliveryDate,o.courier||'',o.trackingNumber||'',o.total||0,o.advancePaid||0,o.remainingDue??Math.max(0,(o.total||0)-(o.advancePaid||0)),o.payment||'',o.status||'']);const csv=[head,...rows].map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\n');const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kryven-era-orders.csv';a.click()}
 window.exportData=exportData;window.exportOrders=exportOrders;
-loadCloudOrders().finally(()=>{app();watchCloudOrders()});
+app();
+// Render the admin UI immediately. Cloud sync is background-only so a slow/unavailable Supabase request can never leave a blank page.
+Promise.race([loadCloudOrders(), new Promise(resolve=>setTimeout(resolve,5000))]).finally(()=>{
+  if(isAuthed() && (active==='orders'||active==='dashboard')) renderBody();
+});
+watchCloudOrders();
