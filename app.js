@@ -41,6 +41,7 @@ const defaultState = {
 };
 
 const KEY='kryven-era-state-v3';
+const DEFAULT_HERO_VIDEO='kryven-era-hero-temp.mp4';
 function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||structuredClone(defaultState)}catch{return structuredClone(defaultState)}}
 let state=loadState();
 function hydrateState(){
@@ -56,7 +57,10 @@ function hydrateState(){
     savedPayments.paymentSettingsVersion=3;
   }
   state.settings.payments=Object.assign(paymentDefaults,savedPayments);
-  state.settings.backgroundVideo=state.settings.backgroundVideo||state.settings.heroVideo||'';
+  if(state.settings.heroVideoSeeded!==true && !state.settings.heroVideo){state.settings.heroVideo=DEFAULT_HERO_VIDEO;state.settings.heroVideoSeeded=true;}
+  if(String(state.settings.heroVideo||'').includes('interactive-examples.mdn.mozilla.net')){state.settings.heroVideo=DEFAULT_HERO_VIDEO;state.settings.heroVideoSeeded=true;}
+  state.settings.adminLogo=state.settings.adminLogo||'favicon.png';
+  state.settings.backgroundVideo=state.settings.backgroundVideo||'';
   state.settings.backgroundVideoEnabled=Boolean(state.settings.backgroundVideoEnabled);
   state.orders=Array.isArray(state.orders)?state.orders:[];
   state.products=Array.isArray(state.products)?state.products:[];
@@ -152,38 +156,39 @@ function renderPage(){const page=document.body.dataset.page||'home'; if(page==='
  return `${header()}${hero()}${categories()}${shop()}${trust()}${footer()}${drawDrawer()}${drawModal()}`}
 function siteBackground(){const s=state.settings||{};if(!s.backgroundVideoEnabled||!s.backgroundVideo)return '';return `<div id="siteBackgroundVideo" aria-hidden="true" style="position:fixed;inset:0;z-index:-2;overflow:hidden;background:#050505;pointer-events:none"><video autoplay muted loop playsinline preload="auto" src="${esc(s.backgroundVideo)}" style="width:100%;height:100%;object-fit:cover;opacity:.22;filter:saturate(.75) contrast(1.15) brightness(.55)"></video></div><div style="position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(rgba(5,5,5,.62),rgba(5,5,5,.82))"></div>`}
 function bindMobileSearchAutoHide(){
-  const bar=document.querySelector('.search-wrap');
-  if(!bar)return;
-  if(window.__keSearchScroll)window.removeEventListener('scroll',window.__keSearchScroll);
-  if(window.__keSearchTouchStart)window.removeEventListener('touchstart',window.__keSearchTouchStart);
-  if(window.__keSearchTouchEnd)window.removeEventListener('touchend',window.__keSearchTouchEnd);
+  const header=document.querySelector('.header');
+  if(!header)return;
+  if(window.__keHeaderScroll)window.removeEventListener('scroll',window.__keHeaderScroll);
+  if(window.__keHeaderTouchStart)window.removeEventListener('touchstart',window.__keHeaderTouchStart);
+  if(window.__keHeaderTouchEnd)window.removeEventListener('touchend',window.__keHeaderTouchEnd);
   let last=window.scrollY||0;
   let touchStartY=0;
   const setHidden=(hidden)=>{
-    if(window.innerWidth<=980) bar.classList.toggle('search-hidden',hidden);
-    else bar.classList.remove('search-hidden');
+    if(window.innerWidth<=980) header.classList.toggle('header-hidden',hidden);
+    else header.classList.remove('header-hidden');
   };
-  window.__keSearchScroll=()=>{
+  window.__keHeaderScroll=()=>{
     if(window.innerWidth>980){setHidden(false);last=window.scrollY||0;return;}
     const y=window.scrollY||0;
-    if(y>last+5 && y>18) setHidden(true);
-    else if(y<last-5 || y<=8) setHidden(false);
+    if(y>last+4 && y>12) setHidden(true);
+    else if(y<last-2 || y<=8) setHidden(false);
     last=y;
   };
-  window.__keSearchTouchStart=(e)=>{
+  window.__keHeaderTouchStart=(e)=>{
     if(window.innerWidth<=980 && e.touches?.length) touchStartY=e.touches[0].clientY;
   };
-  window.__keSearchTouchEnd=(e)=>{
+  window.__keHeaderTouchEnd=(e)=>{
     if(window.innerWidth>980 || !e.changedTouches?.length)return;
     const dy=e.changedTouches[0].clientY-touchStartY;
-    if(dy<-18) setHidden(true);
-    else if(dy>18) setHidden(false);
+    if(dy<-10) setHidden(true);
+    else if(dy>5) setHidden(false);
   };
-  window.addEventListener('scroll',window.__keSearchScroll,{passive:true});
-  window.addEventListener('touchstart',window.__keSearchTouchStart,{passive:true});
-  window.addEventListener('touchend',window.__keSearchTouchEnd,{passive:true});
-  window.__keSearchScroll();
+  window.addEventListener('scroll',window.__keHeaderScroll,{passive:true});
+  window.addEventListener('touchstart',window.__keHeaderTouchStart,{passive:true});
+  window.addEventListener('touchend',window.__keHeaderTouchEnd,{passive:true});
+  window.__keHeaderScroll();
 }
+
 
 function render(){
   document.getElementById('app').innerHTML=siteBackground()+renderPage();
@@ -368,9 +373,8 @@ function setTrackingForStatus(o,status,note=''){
   if(ix>=0)o.timeline[ix]=item;else o.timeline.push(item);
 }
 state.orders.forEach(ensureOrderTracking);
-if(String(state.settings?.heroVideo||'').includes('interactive-examples.mdn.mozilla.net')) state.settings.heroVideo='';
 
-function header(){return `<header class="header hero-header"><div class="container nav">
+function header(){const home=document.body.dataset.page==='home';return `<header class="header hero-header ${home?'floating-header':''}"><div class="container nav">
   <a class="logo premium-logo" href="index.html" aria-label="KRYVEN ERA home"><img class="logo-image" src="favicon.png" alt="KRYVEN ERA logo"><span class="logo-text">${esc(state.settings.brand)}<small>${esc(state.settings.tagline||'THE ERA OF UNCOMPROMISING STYLE')}</small></span></a>
   <nav class="nav-links"><a href="index.html">HOME</a><a href="shop.html">SHOP</a><a href="categories.html">CATEGORIES</a><a href="tracking.html">TRACK ORDER</a><a href="help-care.html">CONTACT</a></nav>
   <div class="search-wrap"><input id="topSearch" class="search" placeholder="Search the era…" onfocus="renderSearchOverlay('')" oninput="search(this.value)"/><span class="search-icon">⌕</span><button class="scan-btn" title="Scan barcode" onclick="startBarcodeScan()">▥</button></div>

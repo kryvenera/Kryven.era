@@ -54,3 +54,38 @@ a{color:inherit;text-decoration:none}button,input,textarea,select{font:inherit}b
   .product-gallery-swipe .main-shot{min-height:420px}
   .product-page-swipe-stage{min-height:420px}
 }
+
+
+/* Floating mobile/hero header polish */
+.header.floating-header{position:absolute;top:48px;left:0;right:0;background:transparent;border-bottom:0;backdrop-filter:none;transition:transform .18s ease,opacity .18s ease,visibility .18s ease;}
+.header.floating-header .nav{min-height:78px;}
+.header.floating-header .logo-text{color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.25)}
+.header.floating-header .logo-text small{color:rgba(255,255,255,.72)}
+.header.floating-header .nav-links a{color:#fff;text-shadow:0 1px 10px rgba(0,0,0,.25)}
+.header.floating-header .search{background:rgba(255,255,255,.92);border-color:rgba(255,255,255,.6)}
+.header.floating-header .search-icon{color:#232623}
+.header.floating-header .icon-btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.55);color:#fff;backdrop-filter:blur(8px)}
+.header.floating-header .badge{color:#1d201e}
+.header.header-hidden{transform:translateY(-115%);opacity:0;visibility:hidden;pointer-events:none}
+.admin-logo-image{width:38px;height:38px;border-radius:12px;object-fit:cover;border:1px solid var(--line);background:#fff}
+.login-mark{overflow:hidden;padding:0;background:#202420}
+.login-mark img{width:100%;height:100%;object-fit:cover;display:block}
+@media(max-width:980px){
+  .header.floating-header{top:48px;}
+  .header.floating-header .nav{min-height:62px;gap:6px;padding-top:2px;}
+  .header.floating-header .logo{gap:6px;}
+  .header.floating-header .logo-image{width:29px;height:29px}
+  .header.floating-header .logo-text{font-size:11px;letter-spacing:.06em;}
+  .header.floating-header .search-wrap{max-width:none;}
+  .header.floating-header .search{height:38px;font-size:12px;}
+  .header.floating-header .nav-actions{gap:2px;align-items:center;transform:translateY(-4px)}
+  .header.floating-header .nav-actions .icon-btn{display:block!important;width:31px;height:31px;font-size:12px;}
+}
+@media(max-width:680px){
+  .header.floating-header .nav{gap:5px;}
+  .header.floating-header .logo-text small{display:none}
+  .header.floating-header .logo-text{max-width:88px;overflow:hidden;text-overflow:ellipsis;}
+  .header.floating-header .search{height:36px;padding-left:11px;font-size:11px;}
+  .header.floating-header .search-icon{right:10px;top:9px;}
+  .header.floating-header .nav-actions .icon-btn{width:29px;height:29px;font-size:12px;}
+}
