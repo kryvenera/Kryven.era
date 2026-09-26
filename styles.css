@@ -126,3 +126,47 @@ a{color:inherit;text-decoration:none}button,input,textarea,select{font:inherit}b
 .header .search-wrap .search::placeholder{color:rgba(255,255,255,.72)!important;opacity:1}
 .header .search-wrap .search-icon{color:#fff!important}
 .header .search-wrap .scan-btn{background:#161817!important;color:#fff!important;border-color:rgba(255,255,255,.2)!important}
+
+/* Account / privacy / confirmation UI */
+.account-auth-card,.account-page-card{background:rgba(255,255,255,.72);border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:0 18px 45px rgba(0,0,0,.08)}
+.account-auth-mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:#090b09;color:#fff;font-weight:900;letter-spacing:.08em;margin-bottom:14px}
+.account-auth-card h4,.account-auth-card h2{margin:0 0 7px;font-family:'Playfair Display',Georgia,serif}
+.account-policy{margin-top:15px;padding:14px 15px;border:1px solid rgba(9,11,9,.12);border-radius:15px;background:rgba(238,243,231,.8)}
+.account-policy-title{font-weight:800;font-size:12px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:7px}
+.account-policy p{margin:5px 0;font-size:11px;line-height:1.65}
+.account-consent{display:flex;gap:10px;align-items:flex-start;margin-top:14px;padding:11px 12px;border:1px solid var(--line);border-radius:13px;background:#fff;font-size:11px;line-height:1.55;cursor:pointer}
+.account-consent input{margin-top:2px;accent-color:#111;transform:scale(1.08)}
+.account-id-card{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:13px 14px;border-radius:15px;background:#111;color:#fff}
+.account-id-card span,.account-id-mini span{display:block;font-size:8px;letter-spacing:.14em;opacity:.7;text-transform:uppercase}
+.account-id-card b{font-size:15px;letter-spacing:.1em}
+.mini-btn{border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:10px;padding:8px 10px;font-size:9px;font-weight:800}
+.account-actions-block,.account-page-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.account-action{width:100%;border-radius:13px;padding:12px 10px;font-size:10px;font-weight:900;letter-spacing:.08em;cursor:pointer}
+.danger-outline{background:#fff;border:1px solid #ef4444;color:#dc2626}
+.danger-solid{background:#dc2626;border:1px solid #dc2626;color:#fff}
+.account-confirm{text-align:center;padding:26px 8px 12px}
+.confirm-icon{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;margin:0 auto 12px;background:#111;color:#fff;font-weight:900;font-size:20px}
+.confirm-icon.delete{background:#dc2626}
+.confirm-danger-text{color:#dc2626!important;font-size:18px;margin:0 0 8px;font-family:'Playfair Display',Georgia,serif}
+.confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.confirm-btn{border:0;border-radius:12px;padding:13px 10px;font-size:11px;font-weight:900;letter-spacing:.08em;cursor:pointer}
+.yes-red{background:#dc2626;color:#fff}
+.no-green{background:#16a34a;color:#fff}
+.menu-item-btn{display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:12px;padding:13px 10px;border:1px solid transparent;border-radius:15px;background:rgba(255,255,255,.6);transition:.18s ease;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.menu-item-btn:hover{border-color:var(--line);background:#fff;transform:translateX(-2px)}
+.menu-danger-item .menu-list-icon{color:#dc2626;background:rgba(220,38,38,.08)}
+.menu-delete-item .menu-list-icon{color:#b91c1c;background:rgba(220,38,38,.12)}
+.customer-id-big{padding:24px 10px;text-align:center}
+.customer-id-big span{display:block;font-size:9px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.customer-id-big b{display:block;font-size:26px;letter-spacing:.12em;margin-top:7px}
+.account-page-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
+.account-page-top h2{margin:0 0 5px;font-family:'Playfair Display',Georgia,serif}
+.account-id-mini{min-width:150px;padding:11px 13px;border:1px solid var(--line);border-radius:14px;background:#111;color:#fff}
+.account-id-mini b{display:block;margin-top:5px;font-size:13px;letter-spacing:.08em}
+@media(max-width:680px){
+  .account-id-card{grid-template-columns:1fr auto}
+  .account-id-card .mini-btn{grid-column:2;grid-row:1}
+  .account-page-top{display:grid}
+  .account-id-mini{width:100%}
+  .account-actions-block,.account-page-actions,.confirm-actions{grid-template-columns:1fr}
+}

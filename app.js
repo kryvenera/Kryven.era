@@ -36,7 +36,7 @@ const defaultState = {
     {id:'KE004',name:'Kryven Windcheater Jacket',category:'Jackets',price:2799,mrp:4299,discount:'35% OFF',rating:4.5,reviews:49,barcode:'890100000004',images:[IMG.jacket,IMG.hero,IMG.hoodie],sizes:{S:true,M:true,L:true,XL:true,XXL:true},colors:['Black','Silver'],description:'Lightweight shell jacket with reflective details and a sleek monochrome finish.',features:['Lightweight shell','Reflective trims','Water resistant','Zip pockets'],stock:22},
     {id:'KE005',name:'Kryven Era Cap',category:'Accessories',price:999,mrp:1299,discount:'23% OFF',rating:4.4,reviews:31,barcode:'890100000005',images:[IMG.cap,IMG.tshirt,IMG.hero],sizes:{S:true,M:true,L:false,XL:false,XXL:false},colors:['Black','Gold'],description:'Structured 6-panel cap with embroidered K mark and metal adjuster.',features:['Cotton twill','Structured crown','Metal adjuster','Embroidered mark'],stock:30}
   ],
-  cart:[], wishlist:[], profile:{name:'',email:'',phone:'',address:'',landmark:'',houseNumber:'',city:'',state:'',pincode:''}, orders:[], searches:{}, reviews:[],
+  cart:[], wishlist:[], profile:{name:'',email:'',phone:'',address:'',landmark:'',houseNumber:'',city:'',state:'',pincode:''}, account:{signedIn:false,consent:false,signedInAt:''}, orders:[], searches:{}, reviews:[],
   heroSlides:[IMG.hero,IMG.tshirt,IMG.jacket]
 };
 
@@ -46,6 +46,8 @@ function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||structure
 let state=loadState();
 function hydrateState(){
   state.settings=state.settings||{};
+  state.account=state.account||{};
+  state.account=Object.assign({signedIn:Boolean(state.profile?.name||state.profile?.phone||state.profile?.email),consent:false,signedInAt:''},state.account);
   const paymentDefaults={cod:false,upi:false,card:false,bank:false,codAdvancePercent:20,paymentSettingsVersion:3};
   const savedPayments=state.settings.payments||{};
   if(savedPayments.paymentSettingsVersion!==3){
@@ -255,21 +257,94 @@ function getCustomerId(){
   return id;
 }
 function openMenu(){
-  const cid=getCustomerId();
+  const cid=getCustomerId(), signed=Boolean(state.account?.signedIn);
   openDrawer(`<div class="drawer-head"><div><div class="eyebrow">KRYVEN ERA</div><h3>Menu</h3></div><button class="drawer-close" onclick="closeDrawer()">×</button></div>
-  <div class="menu-profile-card"><div class="menu-avatar">${esc((state.profile?.name||'K').trim().charAt(0).toUpperCase())}</div><div><b>${esc(state.profile?.name||'Kryven Customer')}</b><small>Customer ID · ${esc(cid)}</small></div></div>
+  <div class="menu-profile-card"><div class="menu-avatar">${esc((state.profile?.name||'K').trim().charAt(0).toUpperCase())}</div><div><b>${esc(state.profile?.name||'Kryven Customer')}</b><small>${signed?'Customer ID · '+esc(cid):'Not signed in'}</small></div></div>
   <div class="menu-list">
-    <a href="customer-details.html"><span class="menu-list-icon">◎</span><span><b>Customer Details</b><small>Profile, phone & address</small></span><em>›</em></a>
+    <button class="menu-item-btn" onclick="${signed?'openAccountPanel()':'openAccountSignIn()'}"><span class="menu-list-icon">◎</span><span><b>${signed?'Edit Account':'Sign in / Create account'}</b><small>${signed?'Edit your details & account settings':'Sign in to manage your details'}</small></span><em>›</em></button>
+    <button class="menu-item-btn" onclick="openMenuCustomerId()"><span class="menu-list-icon">#</span><span><b>Customer ID</b><small>${esc(cid)}</small></span><em>›</em></button>
     <a href="wishlist.html"><span class="menu-list-icon pink">♥</span><span><b>Wishlist</b><small>${state.wishlist.length?state.wishlist.length+' saved item'+(state.wishlist.length===1?'':'s'):'Your saved items'}</small></span><em>›</em></a>
     <a href="tracking.html"><span class="menu-list-icon">↗</span><span><b>My Orders</b><small>${state.orders.length?state.orders.length+' order'+(state.orders.length===1?'':'s'):'Track your orders'}</small></span><em>›</em></a>
     <a href="shop.html"><span class="menu-list-icon">＋</span><span><b>Shop All</b><small>Explore the latest drop</small></span><em>›</em></a>
     <a href="help-care.html"><span class="menu-list-icon">?</span><span><b>Help & Care</b><small>Support & order help</small></span><em>›</em></a>
+    ${signed?`<button class="menu-item-btn menu-danger-item" onclick="openLogoutConfirm()"><span class="menu-list-icon danger-icon">↪</span><span><b>Log out</b><small>Sign out on this browser</small></span><em>›</em></button><button class="menu-item-btn menu-delete-item" onclick="openDeleteConfirm()"><span class="menu-list-icon delete-icon">!</span><span><b>Delete account</b><small>Remove your local account data</small></span><em>›</em></button>`:''}
   </div>
-  <div class="menu-id-note">Your Customer ID is unique to this browser. Keep it handy for support.</div>`);
+  <div class="menu-id-note">${signed?'You can edit, log out or delete your account from the menu.':'Sign in to unlock account details, Customer ID and account controls.'}</div>`);
 }
-window.openMenu=openMenu;
-function openProfile(){const p=state.profile;openDrawer(`<div class="drawer-head"><h3>Customer Details</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="form-section" style="margin-top:15px"><h4>Your profile</h4><div class="form-grid"><div class="field"><label>Full name</label><input id="pfName" value="${esc(p.name)}"/></div><div class="field"><label>Email</label><input id="pfEmail" value="${esc(p.email)}" type="email"/></div><div class="field"><label>Phone</label><input id="pfPhone" value="${esc(p.phone)}"/></div><div class="field"><label>Address</label><input id="pfAddress" value="${esc(p.address)}"/></div><div class="field"><label>City</label><input id="pfCity" value="${esc(p.city)}"/></div><div class="field"><label>Pincode</label><input id="pfPin" value="${esc(p.pincode)}"/></div></div><button class="btn primary" style="margin-top:15px;width:100%" onclick="saveProfile()">Save customer details</button></div>`)}
-window.saveProfile=()=>{state.profile={...state.profile,name:document.getElementById('pfName')?.value?.trim()||'',email:document.getElementById('pfEmail')?.value?.trim()||'',phone:document.getElementById('pfPhone')?.value?.trim()||'',address:document.getElementById('pfAddress')?.value?.trim()||'',landmark:document.getElementById('pfLandmark')?.value?.trim()||'',houseNumber:document.getElementById('pfHouse')?.value?.trim()||'',city:document.getElementById('pfCity')?.value?.trim()||'',state:document.getElementById('pfState')?.value?.trim()||'',pincode:document.getElementById('pfPin')?.value?.trim()||''};save();toast('Customer details saved');closeDrawer()}
+function openMenuCustomerId(){const cid=getCustomerId();openDrawer(`<div class="drawer-head"><h3>Customer ID</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="customer-id-big"><span>YOUR KRYVEN ERA ID</span><b>${esc(cid)}</b><button class="btn primary" style="width:100%;margin-top:14px" onclick="navigator.clipboard?.writeText('${esc(cid)}');toast('Customer ID copied')">COPY CUSTOMER ID</button></div>`)}
+window.openMenu=openMenu;window.openMenuCustomerId=openMenuCustomerId;
+function accountPolicyText(){return `<div class="account-policy">
+  <div class="account-policy-title">Why KRYVEN ERA asks for your details</div>
+  <p>We use the details you provide to create and manage your customer account, keep your order and delivery information, contact you about your orders, and provide customer support.</p>
+  <p class="muted">Please review the information before continuing. You control your profile and can edit, log out, or delete the account from the menu.</p>
+</div>`}
+function openAccountSignIn(){
+  const p=state.profile||{};
+  openDrawer(`<div class="drawer-head"><div><div class="eyebrow">KRYVEN ERA</div><h3>Sign in / Create account</h3></div><button class="drawer-close" onclick="closeDrawer()">×</button></div>
+    <div class="account-auth-card">
+      <div class="account-auth-mark">K</div>
+      <h4>Welcome to your ERA.</h4>
+      <p class="muted">Enter your basic details to continue.</p>
+      ${accountPolicyText()}
+      <div class="form-section" style="margin-top:16px">
+        <div class="field"><label>FULL NAME <span class="required-mark">*</span></label><input id="signinName" autocomplete="name" value="${esc(p.name||'')}" placeholder="Your name"></div>
+        <div class="field" style="margin-top:10px"><label>MOBILE NUMBER <span class="required-mark">*</span></label><input id="signinPhone" inputmode="tel" autocomplete="tel" value="${esc(p.phone||'')}" placeholder="10-digit mobile number"></div>
+        <div class="field" style="margin-top:10px"><label>EMAIL ID <span class="optional-mark">(Optional)</span></label><input id="signinEmail" type="email" autocomplete="email" value="${esc(p.email||'')}" placeholder="name@example.com"></div>
+        <label class="account-consent"><input id="accountConsent" type="checkbox" ${state.account?.consent?'checked':''}><span>I confirm that I have read and agree to the KRYVEN ERA privacy & data-use policy above.</span></label>
+        <button class="btn primary" style="width:100%;margin-top:16px" onclick="completeAccountSignIn()">CONTINUE →</button>
+      </div>
+    </div>`)
+}
+window.completeAccountSignIn=(openPanel=true)=>{
+  const name=document.getElementById('signinName')?.value?.trim()||'';
+  const phone=document.getElementById('signinPhone')?.value?.trim()||'';
+  const email=document.getElementById('signinEmail')?.value?.trim()||'';
+  const consent=Boolean(document.getElementById('accountConsent')?.checked);
+  if(!name){toast('Please enter your full name');return}
+  if(!/\d{10}/.test(phone.replace(/\D/g,''))){toast('Please enter a valid 10-digit mobile number');return}
+  if(!consent){toast('Please confirm the privacy & data-use policy');return}
+  state.profile={...state.profile,name,phone,email};
+  state.account={...(state.account||{}),signedIn:true,consent:true,signedInAt:new Date().toISOString()};
+  save();toast('Account signed in successfully');if(openPanel)openAccountPanel();
+}
+function openAccountPanel(){
+  const p=state.profile||{}, cid=getCustomerId();
+  openDrawer(`<div class="drawer-head"><div><div class="eyebrow">CUSTOMER ACCOUNT</div><h3>Account details</h3></div><button class="drawer-close" onclick="closeDrawer()">×</button></div>
+    <div class="account-id-card"><span>CUSTOMER ID</span><b>${esc(cid)}</b><button class="mini-btn" onclick="navigator.clipboard?.writeText('${esc(cid)}');toast('Customer ID copied')">COPY</button></div>
+    <div class="form-section" style="margin-top:15px"><div class="form-grid">
+      <div class="field"><label>Full name</label><input id="pfName" value="${esc(p.name)}"></div>
+      <div class="field"><label>Email</label><input id="pfEmail" value="${esc(p.email)}" type="email"></div>
+      <div class="field"><label>Phone</label><input id="pfPhone" value="${esc(p.phone)}" inputmode="tel"></div>
+      <div class="field"><label>Address</label><input id="pfAddress" value="${esc(p.address)}"></div>
+      <div class="field"><label>Landmark</label><input id="pfLandmark" value="${esc(p.landmark||'')}"></div>
+      <div class="field"><label>House / Building No.</label><input id="pfHouse" value="${esc(p.houseNumber||'')}"></div>
+      <div class="field"><label>City</label><input id="pfCity" value="${esc(p.city)}"></div>
+      <div class="field"><label>State</label><input id="pfState" value="${esc(p.state||'')}"></div>
+      <div class="field"><label>Pincode</label><input id="pfPin" value="${esc(p.pincode)}"></div>
+    </div><button class="btn primary" style="margin-top:15px;width:100%" onclick="saveProfile()">SAVE CHANGES</button></div>
+    <div class="account-actions-block">
+      <button class="account-action danger-outline" onclick="openLogoutConfirm()">LOG OUT</button>
+      <button class="account-action danger-solid" onclick="openDeleteConfirm()">DELETE ACCOUNT</button>
+    </div>`)
+}
+function openProfile(){state.account?.signedIn?openAccountPanel():openAccountSignIn()}
+window.saveProfile=()=>{
+  const name=document.getElementById('pfName')?.value?.trim()||'';
+  const phone=document.getElementById('pfPhone')?.value?.trim()||'';
+  if(!name){toast('Full name is required');return}
+  if(!/\d{10}/.test(phone.replace(/\D/g,''))){toast('Enter a valid 10-digit mobile number');return}
+  state.profile={...state.profile,name,email:document.getElementById('pfEmail')?.value?.trim()||'',phone,address:document.getElementById('pfAddress')?.value?.trim()||'',landmark:document.getElementById('pfLandmark')?.value?.trim()||'',houseNumber:document.getElementById('pfHouse')?.value?.trim()||'',city:document.getElementById('pfCity')?.value?.trim()||'',state:document.getElementById('pfState')?.value?.trim()||'',pincode:document.getElementById('pfPin')?.value?.trim()||''};
+  save();toast('Customer details updated');closeDrawer();render();
+}
+function openLogoutConfirm(){openDrawer(`<div class="drawer-head"><h3>Log out</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="account-confirm"><div class="confirm-icon">↪</div><h4>Do you want to log out?</h4><p class="muted">Your saved customer details will remain on this browser. You can sign in again later.</p><div class="confirm-actions"><button class="confirm-btn yes-red" onclick="performLogout()">YES</button><button class="confirm-btn no-green" onclick="openAccountPanel()">NO</button></div></div>`)}
+function performLogout(){state.account={...(state.account||{}),signedIn:false};save();closeDrawer();toast('You have been logged out');render()}
+function openDeleteConfirm(){openDrawer(`<div class="drawer-head"><h3>Delete account</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="account-confirm"><div class="confirm-icon delete">!</div><h4 class="confirm-danger-text">Do you want to delete your account?</h4><p class="muted">This will remove your customer profile, saved wishlist, local orders and customer ID from this browser. Store catalogue and admin settings will stay untouched.</p><div class="confirm-actions"><button class="confirm-btn yes-red" onclick="performDeleteAccount()">YES, DELETE</button><button class="confirm-btn no-green" onclick="openAccountPanel()">NO</button></div></div>`)}
+function performDeleteAccount(){
+  state.profile={name:'',email:'',phone:'',address:'',landmark:'',houseNumber:'',city:'',state:'',pincode:''};
+  state.account={signedIn:false,consent:false,signedInAt:''}; state.cart=[]; state.wishlist=[]; state.orders=[]; state.reviews=[]; state.searches={};
+  localStorage.removeItem('kryven-era-customer-id'); save(); closeDrawer(); toast('Account deleted'); render();
+}
+window.openLogoutConfirm=openLogoutConfirm;window.performLogout=performLogout;window.openDeleteConfirm=openDeleteConfirm;window.performDeleteAccount=performDeleteAccount;
 function openWishlist(e){e?.preventDefault();const items=state.products.filter(p=>state.wishlist.includes(p.id));openDrawer(`<div class="drawer-head"><h3>Wishlist</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div style="padding-top:15px">${items.length?`<div class="product-grid">${items.map(productCard).join('')}</div>`:`<div class="muted" style="padding:40px 0;text-align:center">Tap ♡ on a product to save it here.</div>`}</div>`)}
 window.openWishlist=openWishlist;
 function openTracking(e){e?.preventDefault();openDrawer(`<div class="drawer-head"><h3>Track Order</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="form-section" style="margin-top:15px"><div class="field"><label>Order ID</label><input id="trackId" placeholder="e.g. KE-2026-001"/></div><button class="btn primary" style="margin-top:12px" onclick="trackOrder()">Track</button><div id="trackResult" style="margin-top:18px"></div></div>`)}
@@ -347,9 +422,13 @@ async function init3D(elId,p){const el=document.getElementById(elId); if(!el)ret
 window.startBarcodeScan=async()=>{try{if(!('BarcodeDetector' in window)){toast('Barcode scanning is not supported here. Type the barcode instead.');return}const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e']});const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});const video=document.createElement('video');video.autoplay=true;video.muted=true;video.playsInline=true;video.style.position='fixed';video.style.zIndex='100';video.style.inset='50% auto auto 50%';video.style.transform='translate(-50%,-50%)';video.style.width='min(520px,92vw)';video.style.border='2px solid #d8ab58';video.style.borderRadius='18px';video.style.background='#000';document.body.appendChild(video);video.srcObject=stream;await video.play();const scan=async()=>{try{const codes=await detector.detect(video);if(codes.length){const value=codes[0].rawValue;stream.getTracks().forEach(t=>t.stop());video.remove();document.querySelector('#topSearch').value=value;search(value);toast('Barcode found');return}}catch{}requestAnimationFrame(scan)};scan()}catch(e){toast('Camera permission denied. Enter the barcode manually.')}};
 
 function checkoutMarkup(){const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0);return `<div class="checkout-grid"><div class="checkout-card"><div class="form-section"><h4>Shipping details</h4><div class="form-grid"><div class="field"><label>Name</label><input id="coName" value="${esc(state.profile.name)}"></div><div class="field"><label>Phone</label><input id="coPhone" value="${esc(state.profile.phone)}"></div><div class="field" style="grid-column:1/-1"><label>Address</label><input id="coAddress" value="${esc(state.profile.address)}"></div><div class="field"><label>City</label><input id="coCity" value="${esc(state.profile.city)}"></div><div class="field"><label>Pincode</label><input id="coPin" value="${esc(state.profile.pincode)}"></div></div></div><div class="form-section"><h4>Discount code <span class="muted">optional</span></h4><div style="display:flex;gap:8px"><input id="coupon" style="flex:1" placeholder="Enter code"><button class="btn" onclick="applyCheckoutCoupon()">Apply</button></div><div id="couponMsg" class="muted"></div></div><div class="form-section"><h4>Payment method</h4><div class="payment-list">${state.settings.payments.cod?'<label class="toggle-row"><span>Cash on Delivery</span><input name="pay" type="radio" value="cod" checked></label>':''}${state.settings.payments.upi?'<label class="toggle-row"><span>UPI Payment</span><input name="pay" type="radio" value="upi"></label>':''}${state.settings.payments.card?'<label class="toggle-row"><span>Credit / Debit Card</span><input name="pay" type="radio" value="card"></label>':''}</div></div></div><div class="summary-card"><h4>Order summary</h4><div class="summary-row"><span>Subtotal</span><span>${money(sub)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div class="summary-row"><b>Total</b><b id="sumTotal">${money(sub+state.settings.shipping)}</b></div><button class="btn primary" style="width:100%;margin-top:16px" onclick="placeOrder()">Place order →</button></div></div>`}
-function customerPage(){const p=state.profile;return `<div class="checkout-card"><div class="form-grid"><div class="field"><label>Full name</label><input id="pfName" value="${esc(p.name)}"></div><div class="field"><label>Email</label><input id="pfEmail" value="${esc(p.email)}"></div><div class="field"><label>Phone</label><input id="pfPhone" value="${esc(p.phone)}"></div><div class="field"><label>Address</label><input id="pfAddress" value="${esc(p.address)}"></div><div class="field"><label>City</label><input id="pfCity" value="${esc(p.city)}"></div><div class="field"><label>Pincode</label><input id="pfPin" value="${esc(p.pincode)}"></div></div><button class="btn primary" style="margin-top:18px" onclick="saveProfile();render()">Save customer details</button></div>`}
-function trackingPage(){return `<div class="checkout-card"><div class="field"><label>Order ID</label><input id="trackId" placeholder="KE-2026-001"></div><button class="btn primary" style="margin-top:12px" onclick="trackOrder()">Track Order</button><div id="trackResult" style="margin-top:18px"></div></div>`}
-function supportPage(){return `<div class="support-grid"><div class="checkout-card"><div class="eyebrow">Need help?</div><h2>We're here for your order.</h2><p class="muted">${esc(state.settings.supportText)}</p><a class="btn success" href="https://wa.me/${esc(state.settings.whatsapp)}?text=${encodeURIComponent('Hello Kryven Era, I need help with my order.') }" target="_blank">Chat on WhatsApp</a><p class="muted">+${esc(state.settings.whatsapp)}</p></div></div>`}
+function customerPage(){
+  const p=state.profile;
+  if(!state.account?.signedIn){
+    return `<div class="account-page-card"><div class="account-auth-card"><div class="account-auth-mark">K</div><div class="eyebrow">CUSTOMER ACCOUNT</div><h2>Sign in to your ERA.</h2><p class="muted">Create or access your customer account, then edit your details anytime.</p>${accountPolicyText()}<div class="form-section" style="margin-top:16px"><div class="field"><label>FULL NAME <span class="required-mark">*</span></label><input id="signinName" value="${esc(p.name||'')}" placeholder="Your name"></div><div class="field" style="margin-top:10px"><label>MOBILE NUMBER <span class="required-mark">*</span></label><input id="signinPhone" value="${esc(p.phone||'')}" inputmode="tel" placeholder="10-digit mobile number"></div><div class="field" style="margin-top:10px"><label>EMAIL ID <span class="optional-mark">(Optional)</span></label><input id="signinEmail" value="${esc(p.email||'')}" type="email" placeholder="name@example.com"></div><label class="account-consent"><input id="accountConsent" type="checkbox"><span>I confirm that I have read and agree to the KRYVEN ERA privacy & data-use policy above.</span></label><button class="btn primary" style="margin-top:16px" onclick="completeAccountSignIn(false);render()">CONTINUE →</button></div></div></div>`;
+  }
+  return `<div class="account-page-card"><div class="account-page-top"><div><div class="eyebrow">CUSTOMER ACCOUNT</div><h2>Manage your details.</h2><p class="muted">Edit your profile, review your Customer ID or manage your account.</p></div><div class="account-id-mini"><span>CUSTOMER ID</span><b>${esc(getCustomerId())}</b></div></div><div class="checkout-card"><div class="form-grid"><div class="field"><label>Full name</label><input id="pfName" value="${esc(p.name)}"></div><div class="field"><label>Email</label><input id="pfEmail" value="${esc(p.email)}" type="email"></div><div class="field"><label>Phone</label><input id="pfPhone" value="${esc(p.phone)}"></div><div class="field"><label>Address</label><input id="pfAddress" value="${esc(p.address)}"></div><div class="field"><label>Landmark</label><input id="pfLandmark" value="${esc(p.landmark||'')}"></div><div class="field"><label>House / Building No.</label><input id="pfHouse" value="${esc(p.houseNumber||'')}"></div><div class="field"><label>City</label><input id="pfCity" value="${esc(p.city)}"></div><div class="field"><label>State</label><input id="pfState" value="${esc(p.state||'')}"></div><div class="field"><label>Pincode</label><input id="pfPin" value="${esc(p.pincode)}"></div></div><button class="btn primary" style="margin-top:18px" onclick="saveProfile();render()">SAVE CUSTOMER DETAILS</button><div class="account-page-actions"><button class="account-action danger-outline" onclick="openLogoutConfirm()">LOG OUT</button><button class="account-action danger-solid" onclick="openDeleteConfirm()">DELETE ACCOUNT</button></div></div></div>`;
+}
 function reviewsPage(){const rs=state.reviews;return `<div class="review-grid">${rs.length?rs.map(r=>`<article class="review-card"><b>${esc(r.name)}</b><div class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div><p>${esc(r.text)}</p>${r.photos?.length?`<div class="review-photos">${r.photos.map(x=>`<img src="${x}">`).join('')}</div>`:''}</article>`).join(''):'<div class="empty-state">Customer reviews will appear here after verified purchases.</div>'}</div>`}
 function searchPage(){const q=new URLSearchParams(location.search).get('q')||'';const matches=state.products.filter(p=>(p.name+p.category+p.barcode).toLowerCase().includes(q.toLowerCase()));return `<div class="search-page"><div class="search-wrap large"><input class="search" value="${esc(q)}" placeholder="Search products, category or barcode" oninput="location.href='search.html?q='+encodeURIComponent(this.value)"></div><div class="product-grid" style="margin-top:20px">${matches.map(productCard).join('')||'<div class="empty-state">No matching products found.</div>'}</div></div>`}
 
