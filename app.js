@@ -274,9 +274,21 @@ function openMenu(){
 function openMenuCustomerId(){const cid=getCustomerId();openDrawer(`<div class="drawer-head"><h3>Customer ID</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="customer-id-big"><span>YOUR KRYVEN ERA ID</span><b>${esc(cid)}</b><button class="btn primary" style="width:100%;margin-top:14px" onclick="navigator.clipboard?.writeText('${esc(cid)}');toast('Customer ID copied')">COPY CUSTOMER ID</button></div>`)}
 window.openMenu=openMenu;window.openMenuCustomerId=openMenuCustomerId;
 function accountPolicyText(){return `<div class="account-policy">
-  <div class="account-policy-title">Why KRYVEN ERA asks for your details</div>
-  <p>We use the details you provide to create and manage your customer account, keep your order and delivery information, contact you about your orders, and provide customer support.</p>
-  <p class="muted">Please review the information before continuing. You control your profile and can edit, log out, or delete the account from the menu.</p>
+  <div class="account-policy-title">KRYVEN ERA — Privacy & Customer Policy</div>
+  <p><b>Welcome to KRYVEN ERA.</b> Your trust matters to us. Please read this policy before creating or continuing with your customer account.</p>
+  <p><b>1. Your Account</b><br>We may collect your name, mobile number, email address (if provided), and other necessary account information to create and manage your KRYVEN ERA customer account and provide a smoother shopping experience.</p>
+  <p><b>2. Verification & Account Security</b><br>Your mobile number or email may be used for verification, account security, and important account-related communication. Never share an OTP, password, UPI PIN, ATM PIN, or card PIN with anyone.</p>
+  <p><b>3. Orders & Delivery</b><br>When you place an order, we may collect your name, phone number, address, landmark, city, state, pincode, and other delivery information needed to process and deliver your order and provide order support.</p>
+  <p><b>4. Payments</b><br>Online payments may be processed through secure third-party payment providers. KRYVEN ERA does not ask you to share your UPI PIN, ATM PIN, or card PIN with us. Payment details may be handled by the applicable payment provider according to its own terms and privacy practices.</p>
+  <p><b>5. Wishlist & Shopping Activity</b><br>Your wishlist, cart information, and order history may be stored to help you manage saved products, shopping activity, and previous orders.</p>
+  <p><b>6. Customer Support</b><br>We may use the contact information you provide to respond to support requests, delivery issues, order questions, and other service-related communication.</p>
+  <p><b>7. Account Control</b><br>You can edit your available account details, view your Customer ID, log out, and request deletion of your account using the account controls available in the menu.</p>
+  <p><b>8. Account Deletion</b><br>If you choose to delete your account, customer information stored by this website for the account may be removed from the applicable account storage. Certain records may need to be retained where required for legal, accounting, security, fraud-prevention, or completed-order purposes.</p>
+  <p><b>9. Information Security</b><br>We take reasonable measures intended to protect customer information from unauthorized access, misuse, alteration, or loss. However, no online service can guarantee absolute security.</p>
+  <p><b>10. Information Sharing</b><br>Information may be shared with service providers only when reasonably necessary to operate the store, such as payment processing, delivery, authentication, hosting, analytics, or customer support. We do not ask customers to provide unnecessary sensitive credentials.</p>
+  <p><b>11. Policy Updates</b><br>KRYVEN ERA may update this policy when our services, technology, or legal requirements change. The updated version may be displayed on the website.</p>
+  <p><b>12. Contact</b><br>If you have a question about your account, personal information, an order, or this policy, please contact KRYVEN ERA through the support option provided on the website.</p>
+  <div class="account-policy-note">Please review this policy before continuing. By selecting the confirmation checkbox, you confirm that you have read and understood this policy and agree to continue using the KRYVEN ERA customer account features.</div>
 </div>`}
 function openAccountSignIn(){
   const p=state.profile||{};
