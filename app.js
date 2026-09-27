@@ -74,6 +74,37 @@ function hydrateState(){
 }
 hydrateState();
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+
+// LIVE CATALOG SYNC: the storefront reads the shared catalog from
+// public.kryven_store_state. Cart/profile/orders remain local or use their
+// existing order table, so an Admin catalog change appears without redeploying.
+const LIVE_STATE_REST = `${SUPABASE_URL}/rest/v1/kryven_store_state`;
+let __liveCatalogHash='';
+async function loadLiveCatalog(){
+  try{
+    const res=await fetch(`${LIVE_STATE_REST}?id=eq.1&select=state,updated_at`,{method:'GET',headers:supabaseHeaders()});
+    if(!res.ok)return false;
+    const rows=await res.json();
+    const cloud=rows?.[0]?.state;
+    if(!cloud || !Array.isArray(cloud.products))return false;
+    const next=JSON.stringify({settings:cloud.settings||{},products:cloud.products||[],reviews:cloud.reviews||[],searches:cloud.searches||{},heroSlides:cloud.heroSlides||[]});
+    if(next===__liveCatalogHash)return true;
+    __liveCatalogHash=next;
+    state.settings=Object.assign({},state.settings,cloud.settings||{});
+    // Never let the public catalog row overwrite the customer's local account/cart.
+    state.products=cloud.products;
+    state.reviews=Array.isArray(cloud.reviews)?cloud.reviews:state.reviews;
+    state.searches=cloud.searches||state.searches;
+    if(Array.isArray(cloud.heroSlides))state.heroSlides=cloud.heroSlides;
+    save();
+    return true;
+  }catch(e){console.warn('KRYVEN live catalog unavailable',e);return false}
+}
+async function startLiveCatalog(){
+  await loadLiveCatalog();
+  render();
+  setInterval(async()=>{if(await loadLiveCatalog())render()},10000);
+}
 function money(n){return `${state.settings.currency}${Number(n).toLocaleString('en-IN')}`}
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
@@ -266,7 +297,7 @@ function openMenu(){
     <a href="wishlist.html"><span class="menu-list-icon pink">♥</span><span><b>Wishlist</b><small>${state.wishlist.length?state.wishlist.length+' saved item'+(state.wishlist.length===1?'':'s'):'Your saved items'}</small></span><em>›</em></a>
     <a href="tracking.html"><span class="menu-list-icon">↗</span><span><b>My Orders</b><small>${state.orders.length?state.orders.length+' order'+(state.orders.length===1?'':'s'):'Track your orders'}</small></span><em>›</em></a>
     <a href="shop.html"><span class="menu-list-icon">＋</span><span><b>Shop All</b><small>Explore the latest drop</small></span><em>›</em></a>
-    <a href="https://wa.me/${esc(state.settings.whatsapp||'')}?text=${encodeURIComponent('Hello Kryven Era, I need help with my order.')}" target="_blank" rel="noopener"><span class="menu-list-icon">?</span><span><b>Help & Care</b><small>Chat with us on WhatsApp</small></span><em>›</em></a>
+    <a href="help-care.html"><span class="menu-list-icon">?</span><span><b>Help & Care</b><small>Support & order help</small></span><em>›</em></a>
     ${signed?`<button class="menu-item-btn menu-danger-item" onclick="openLogoutConfirm()"><span class="menu-list-icon danger-icon">↪</span><span><b>Log out</b><small>Sign out on this browser</small></span><em>›</em></button><button class="menu-item-btn menu-delete-item" onclick="openDeleteConfirm()"><span class="menu-list-icon delete-icon">!</span><span><b>Delete account</b><small>Remove your local account data</small></span><em>›</em></button>`:''}
   </div>
   <div class="menu-id-note">${signed?'You can edit, log out or delete your account from the menu.':'Sign in to unlock account details, Customer ID and account controls.'}</div>`);
@@ -361,7 +392,7 @@ function openWishlist(e){e?.preventDefault();const items=state.products.filter(p
 window.openWishlist=openWishlist;
 function openTracking(e){e?.preventDefault();openDrawer(`<div class="drawer-head"><h3>Track Order</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="form-section" style="margin-top:15px"><div class="field"><label>Order ID</label><input id="trackId" placeholder="e.g. KE-2026-001"/></div><button class="btn primary" style="margin-top:12px" onclick="trackOrder()">Track</button><div id="trackResult" style="margin-top:18px"></div></div>`)}
 window.trackOrder=()=>{const id=document.getElementById('trackId').value.trim();const o=state.orders.find(x=>x.id===id);document.getElementById('trackResult').innerHTML=o?`<div class="summary-card"><b>${esc(o.id)}</b><p>${esc(o.status)} · ${new Date(o.createdAt).toLocaleString('en-IN')}</p><div class="muted">Total ${money(o.total)}</div></div>`:`<div class="muted">Order not found on this browser. Admin backend is required for cross-device order lookup.</div>`}
-function openSupport(e){e?.preventDefault(); const n=String(state.settings.whatsapp||'').replace(/\D/g,''); window.open('https://wa.me/'+n+'?text='+encodeURIComponent('Hello Kryven Era, I need help with my order.'),'_blank','noopener,noreferrer');}
+function openSupport(e){e?.preventDefault();openDrawer(`<div class="drawer-head"><h3>Help & Care</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="form-section" style="margin-top:15px"><h4>Need help?</h4><p class="muted">${esc(state.settings.supportText)}</p><a class="btn success" href="https://wa.me/${esc(state.settings.whatsapp)}?text=${encodeURIComponent('Hello Kryven Era, I need help with my order.') }" target="_blank" style="display:inline-block;margin-top:8px">Chat on WhatsApp</a><p class="muted" style="margin-top:16px">Support number: +${esc(state.settings.whatsapp)}</p></div>`)}
 window.openSupport=openSupport;
 
 function openCheckout(){if(!state.cart.length){toast('Your bag is empty');return}location.href='checkout.html'}
@@ -681,5 +712,5 @@ function render(){
   setTimeout(bindMobileSearchAutoHide,40);
 }
 
-render();
+startLiveCatalog();
 setTimeout(()=>showReferralOnce(),700);

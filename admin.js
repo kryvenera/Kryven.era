@@ -47,7 +47,42 @@ function load(){
   return data;
 }
 let state=load(); let active='dashboard'; let selectedOrder=null;
-function save(){localStorage.setItem(KEY,JSON.stringify(state));toast('Saved')}
+let __cloudSaveTimer=null;
+let __adminPinSession=sessionStorage.getItem('ke-admin-pin')||'KRYVEN26';
+const LIVE_STATE_REST = `${SUPABASE_URL}/rest/v1/kryven_store_state`;
+function cloudPayload(){
+  const settings=structuredClone(state.settings||{});
+  // Keep the Admin PIN local. The public catalog row is readable by the storefront.
+  delete settings.adminPin;
+  return {settings,products:structuredClone(state.products||[]),reviews:structuredClone(state.reviews||[]),searches:structuredClone(state.searches||{}),heroSlides:structuredClone(state.heroSlides||[])};
+}
+async function saveCloudNow(){
+  try{
+    const body={id:1,state:cloudPayload(),updated_at:new Date().toISOString()};
+    const res=await fetch(LIVE_STATE_REST,{method:'POST',headers:supabaseHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
+    if(!res.ok){const t=await res.text();throw new Error(t||`HTTP ${res.status}`)}
+    return true;
+  }catch(e){console.warn('KRYVEN cloud save failed',e);toast('Cloud sync failed — check the Supabase live-sync table/policies');return false}
+}
+function queueCloudSave(){clearTimeout(__cloudSaveTimer);__cloudSaveTimer=setTimeout(saveCloudNow,350)}
+function save(){localStorage.setItem(KEY,JSON.stringify(state));queueCloudSave();toast('Saved — syncing live website')}
+async function verifyCloudPin(pin){return false}
+async function loadCloudAdminState(){
+  try{
+    const res=await fetch(`${LIVE_STATE_REST}?id=eq.1&select=state,updated_at`,{method:'GET',headers:supabaseHeaders()});
+    if(!res.ok)return false;
+    const rows=await res.json(); const cloud=rows?.[0]?.state;
+    if(cloud&&Array.isArray(cloud.products)){
+      state.settings=Object.assign({},state.settings,cloud.settings||{});
+      state.products=cloud.products;
+      state.reviews=Array.isArray(cloud.reviews)?cloud.reviews:state.reviews;
+      state.searches=cloud.searches||state.searches;
+      state.heroSlides=Array.isArray(cloud.heroSlides)?cloud.heroSlides:state.heroSlides;
+      localStorage.setItem(KEY,JSON.stringify(state));
+    }
+    return true;
+  }catch(e){console.warn('KRYVEN cloud catalog load failed',e);return false}
+}
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function money(n){return `${state.settings?.currency||'₹'}${Number(n||0).toLocaleString('en-IN')}`}
 function toast(t){const el=document.getElementById('toast');if(!el)return;el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1800)}
@@ -123,7 +158,7 @@ async function deleteCloudOrder(o){if(!o?.cloudRowId)return true;try{await supab
 function app(){document.getElementById('adminApp').innerHTML=`<div class="admin-shell"><div class="admin-top"><div class="container admin-nav"><div class="logo premium-admin-logo"><img class="admin-logo-image" src="${esc(state.settings.adminLogo||'favicon.png')}" alt="Admin logo" onerror="this.style.display='none'"><span class="logo-text">KRYVEN ERA<small>/ COMMAND CENTER</small></span></div><div class="admin-actions"><span class="admin-live"><i></i> LIVE ORDERS</span><a class="btn ghost" href="index.html">VIEW STORE</a><button class="btn" onclick="exportData()">EXPORT</button></div></div></div><div id="adminBody" class="container"></div></div>`;renderBody()}
 function isAuthed(){return sessionStorage.getItem('ke-admin-auth')==='1'}
 function login(){document.getElementById('adminBody').innerHTML=`<div class="locked"><div class="locked-card premium-login"><div class="login-mark"><img src="${esc(state.settings.adminLogo||'favicon.png')}" alt="Admin logo" onerror="this.style.display='none'"></div><div class="eyebrow">KRYVEN ERA / PRIVATE ACCESS</div><h2>Command Center</h2><p class="muted">Owner access only. Manage customers, orders and delivery from here.</p><div class="field"><label>ADMIN PIN</label><input id="pin" type="password" inputmode="text" placeholder="Enter PIN" onkeydown="if(event.key==='Enter')auth()"></div><button class="btn primary" style="width:100%;margin-top:12px" onclick="auth()">UNLOCK PANEL →</button></div></div>`}
-window.auth=()=>{const entered=String(document.getElementById('pin')?.value||'').trim();const saved=String(state.settings?.adminPin||'').trim();const recovery='KRYVEN26';if(entered && (entered===saved || entered===recovery)){if(!saved){state.settings.adminPin=recovery;save()}sessionStorage.setItem('ke-admin-auth','1');renderBody()}else toast('Incorrect admin PIN — use your saved PIN or KRYVEN26')}
+window.auth=async()=>{const entered=String(document.getElementById('pin')?.value||'').trim();const saved=String(state.settings?.adminPin||'').trim();const recovery='KRYVEN26';if(!entered){toast('Enter your Admin PIN');return}const localOk=entered===saved||entered===recovery;if(localOk){__adminPinSession=entered;sessionStorage.setItem('ke-admin-pin',entered);await loadCloudAdminState();sessionStorage.setItem('ke-admin-auth','1');renderBody()}else toast('Incorrect admin PIN — use your saved PIN or KRYVEN26')}
 function renderBody(){
   if(!isAuthed()){login();return}
   const delivered=(state.orders||[]).filter(o=>o.status==='Delivered').length;
