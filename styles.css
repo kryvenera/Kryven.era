@@ -172,3 +172,11 @@ a{color:inherit;text-decoration:none}button,input,textarea,select{font:inherit}b
 }
 
 .account-policy{max-height:52vh;overflow:auto}.account-policy-note{margin-top:10px;padding:10px 11px;border-radius:11px;background:rgba(255,255,255,.72);font-size:10.5px;line-height:1.6;font-weight:650}
+
+/* KRYVEN ERA fixes: persistent bag + quick add + premium motion */
+.card-media{position:relative}
+.card-add{position:absolute;left:12px;right:12px;bottom:12px;z-index:4;border:1px solid rgba(212,175,55,.55);background:rgba(8,8,8,.88);color:#f4d98a;border-radius:999px;padding:10px 12px;font-size:11px;letter-spacing:.12em;font-weight:800;opacity:0;transform:translateY(8px);transition:.25s ease;cursor:pointer}
+.card:hover .card-add,.card:focus-within .card-add{opacity:1;transform:translateY(0)}
+.bag-pop{animation:keBagPop .65s cubic-bezier(.2,.9,.3,1)}
+@keyframes keBagPop{0%{transform:scale(1)}35%{transform:scale(1.3) rotate(-8deg);box-shadow:0 0 0 8px rgba(212,175,55,.12)}70%{transform:scale(.92) rotate(5deg)}100%{transform:scale(1)}}
+@media(max-width:700px){.card-add{opacity:1;transform:none;padding:8px 10px}.nav-actions .icon-btn[title="Bag"]{position:relative}}
