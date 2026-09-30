@@ -1,0 +1,30 @@
+/* KRYVEN ERA upgrade layer — load AFTER styles.css */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+:root{--kf-head:"Cormorant Garamond","Playfair Display",serif;--kf-body:"Manrope","DM Sans",Arial,sans-serif}
+body{font-family:var(--kf-body)}
+h1,h2,h3,.logo-text,.section-head h2,.page-title h1{font-family:var(--kf-head);letter-spacing:.01em}
+body:after{content:"";position:fixed;inset:-20%;z-index:-4;pointer-events:none;background:radial-gradient(40% 35% at 20% 25%,rgba(215,173,89,.16),transparent 70%),radial-gradient(38% 34% at 80% 70%,rgba(159,174,143,.22),transparent 70%);animation:keDrift 22s ease-in-out infinite alternate}
+@keyframes keDrift{to{transform:translate3d(4%,3%,0) scale(1.08)}}
+.product-grid,.categories{perspective:1100px}
+.card{position:relative;transform-style:preserve-3d;transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s;will-change:transform}
+.card.ke-tilt,.card.ke-tilt:hover{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateZ(6px);box-shadow:0 30px 70px rgba(22,25,24,.18);transition:transform .08s linear,box-shadow .3s}
+.card-media{position:relative;overflow:hidden}
+.card.ke-tilt .card-media:after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.38),transparent 55%)}
+.product-grid .card{animation:keUp .7s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(var(--i,0)*70ms)}
+@keyframes keUp{from{opacity:0;transform:translateY(34px) rotateX(12deg)}}
+.ke-rv{opacity:0;transform:translateY(28px) scale(.98);transition:opacity .8s ease,transform .8s cubic-bezier(.2,.8,.2,1)}
+.ke-rv.ke-in{opacity:1;transform:none}
+.hero-media video{filter:saturate(.88) contrast(1.06) sepia(.1) hue-rotate(-6deg)}
+.btn.primary{position:relative;overflow:hidden}
+.btn.primary:after{content:"";position:absolute;top:0;left:-70%;width:50%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);transition:left .7s}
+.btn.primary:hover:after{left:130%}
+.ke-fly{position:fixed;z-index:9999;object-fit:cover;pointer-events:none;box-shadow:0 24px 60px rgba(0,0,0,.35);transform-origin:center}
+.icon-btn{position:relative}
+.ke-pop{animation:kePop .6s cubic-bezier(.3,1.6,.5,1)}
+@keyframes kePop{0%{transform:scale(1)}30%{transform:scale(1.3) rotate(-10deg)}60%{transform:scale(.92) rotate(6deg)}100%{transform:scale(1)}}
+.ke-ring{position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--gold);pointer-events:none;animation:keRing .7s ease-out forwards}
+@keyframes keRing{to{transform:scale(2.2);opacity:0}}
+.tracking-search{flex-wrap:wrap;gap:10px}
+.tracking-search input{flex:1 1 200px;min-width:0}
+.ke-wa{display:inline-block;margin-top:14px}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.ke-rv{opacity:1;transform:none}}
