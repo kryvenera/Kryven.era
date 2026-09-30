@@ -28,3 +28,32 @@ body:after{content:"";position:fixed;inset:-20%;z-index:-4;pointer-events:none;b
 .tracking-search input{flex:1 1 200px;min-width:0}
 .ke-wa{display:inline-block;margin-top:14px}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.ke-rv{opacity:1;transform:none}}
+
+/* ===== KRYVEN ERA / LUXURY VISUAL FIXES ===== */
+:root{
+  --paper:#0b0d0f; --ink:#f5f1e8; --card:#15181c; --muted:#aeb4bd;
+  --line:rgba(215,173,89,.20); --silver:#c4cad2;
+}
+body{
+  color:var(--ink)!important;
+  background:
+    radial-gradient(60% 45% at 12% 12%,rgba(215,173,89,.15),transparent 68%),
+    radial-gradient(50% 40% at 86% 20%,rgba(154,166,183,.16),transparent 65%),
+    radial-gradient(40% 45% at 50% 88%,rgba(88,111,96,.13),transparent 72%),
+    linear-gradient(140deg,#090b0d,#121416 46%,#090b0d)!important;
+}
+body:after{opacity:.55!important;background:radial-gradient(35% 28% at 18% 20%,rgba(215,173,89,.16),transparent 72%),radial-gradient(28% 32% at 82% 72%,rgba(190,200,214,.12),transparent 72%)!important}
+.header{background:rgba(8,10,12,.74)!important;border-bottom-color:rgba(215,173,89,.18)!important;color:#f5f1e8!important}
+.nav-links a{color:#dfe3e7}.search{background:rgba(19,22,25,.82)!important;color:#f5f1e8;border-color:rgba(196,202,210,.20)!important}.search::placeholder{color:#8d949c}.search-icon{color:#c8ced5}.scan-btn{background:#16191d;color:#e9edf1;border-color:rgba(215,173,89,.25)}
+.icon-btn{background:rgba(18,21,24,.78)!important;color:#f5f1e8;border-color:rgba(196,202,210,.22)!important;box-shadow:0 8px 24px rgba(0,0,0,.22)}
+.customer-icon-btn{border-color:rgba(215,173,89,.42)!important}.icon-shine{position:absolute;inset:4px;border-radius:50%;pointer-events:none;border:1px solid rgba(215,173,89,.18)}
+.ke-site-bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:#101316;pointer-events:none}.ke-site-bg video{width:100%;height:100%;object-fit:cover;opacity:.31;filter:saturate(1.08) contrast(1.04) brightness(.72)}.ke-bg-color-wash{position:absolute;inset:0;background:radial-gradient(70% 55% at 16% 18%,rgba(215,173,89,.19),transparent 62%),radial-gradient(58% 52% at 84% 28%,rgba(185,190,199,.16),transparent 66%),linear-gradient(135deg,rgba(6,8,10,.15),rgba(16,20,22,.31));}.ke-bg-vignette{position:absolute;inset:0;background:radial-gradient(circle at center,transparent 38%,rgba(4,6,8,.42) 100%)}
+.hero{background:#07090b}.premium-hero .hero-media{background:#07090b}.premium-hero .hero-image{opacity:.30!important}.premium-hero .hero-video{display:block!important;opacity:.72;filter:saturate(.96) contrast(1.06) brightness(.80)}.hero-media-glow{position:absolute;inset:0;background:radial-gradient(48% 60% at 22% 50%,rgba(215,173,89,.18),transparent 68%),radial-gradient(44% 58% at 83% 42%,rgba(178,190,205,.12),transparent 70%);pointer-events:none}.hero-vignette{background:linear-gradient(90deg,rgba(3,5,7,.62),rgba(3,5,7,.22) 56%,rgba(3,5,7,.15)),linear-gradient(0deg,rgba(3,5,7,.55),transparent 42%)!important}
+.hero h1 span,.section-head h2,.page-title h1{color:#f2d08c;text-shadow:0 0 36px rgba(215,173,89,.10)}
+.card,.trust-card,.bag-list,.checkout-card,.summary-card,.account-page-card,.premium-panel,.checkout-panel,.checkout-summary-card,.review-card{background:linear-gradient(155deg,rgba(23,27,31,.92),rgba(11,13,16,.92))!important;color:#f3f0e7!important;border-color:rgba(196,202,210,.15)!important;box-shadow:0 22px 70px rgba(0,0,0,.26)!important}.card:hover{box-shadow:0 28px 90px rgba(0,0,0,.34)!important}.card .meta,.trust-card span,.muted,.checkout-help{color:#aeb4bd}.card-body h3,.trust-card b,.checkout-panel h3,.summary-card h3{color:#f7f2e7}.size{background:#20252a!important;color:#f0f2f4;border-color:rgba(196,202,210,.17)}.size.off{color:#7d858e}
+.footer{background:linear-gradient(180deg,rgba(14,17,19,.85),rgba(7,9,11,.96))!important;border-top-color:rgba(215,173,89,.17)!important}.footer-grid a,.footer-note{color:#9fa6ae}.drop-ribbon{background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(215,173,89,.08))!important;color:#ece6d8;border-color:rgba(215,173,89,.18)}
+.field input,.field textarea,.field select,.checkout-field input,.checkout-field textarea{background:#111418!important;color:#f4f0e7!important;border-color:rgba(196,202,210,.18)!important}.field label,.checkout-field label{color:#c8ced4}
+.search-overlay,.modal-card,.drawer-panel{background:linear-gradient(155deg,#171b20,#0e1013)!important;color:#f5f1e8!important;border-color:rgba(215,173,89,.18)!important}.search-result,.menu-item-btn{color:#f5f1e8}.secure-qr-box{width:220px;height:220px;margin:18px auto;background:#fff;border-radius:16px;padding:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 12px 45px rgba(0,0,0,.35)}.secure-qr-box img{width:100%;height:100%;object-fit:contain}
+.card-add{position:absolute;left:12px;right:12px;bottom:12px;height:42px;border-radius:999px;background:linear-gradient(90deg,rgba(215,173,89,.96),rgba(233,209,150,.96));color:#111315;font-weight:900;letter-spacing:.12em;font-size:10px;transform:translateY(70px);transition:transform .28s ease,box-shadow .28s ease;z-index:4;box-shadow:0 12px 26px rgba(0,0,0,.24)}.card:hover .card-add,.card:focus-within .card-add{transform:translateY(0)}.card-add:active{transform:translateY(2px) scale(.98)}
+.premium-pay-modal .upi-card{background:linear-gradient(155deg,#1b2025,#0e1114)!important;border-color:rgba(215,173,89,.2)!important}.payment-warning{font-size:11px;line-height:1.55;color:#c8cfd7;margin-top:14px;text-align:center}.checkout-payment.is-enabled{background:rgba(28,32,36,.82)!important;color:#f3efe6;border-color:rgba(196,202,210,.16)!important}.checkout-payment.is-disabled{background:rgba(28,32,36,.46)!important;color:#737b83}
+@media(max-width:980px){.nav{gap:9px}.nav-links{display:none}.search-wrap{min-width:0}.search{height:40px}.nav-actions{gap:4px}.icon-btn{width:37px;height:37px}.hero,.hero-grid{min-height:620px}.premium-hero .hero-video{opacity:.56}.ke-site-bg video{opacity:.23}.card-add{transform:none}}
