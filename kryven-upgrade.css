@@ -1,61 +1,65 @@
-/* KRYVEN ERA upgrade layer — load AFTER styles.css */
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
-:root{--kf-head:"Cormorant Garamond","Playfair Display",serif;--kf-body:"Manrope","DM Sans",Arial,sans-serif}
-body{font-family:var(--kf-body)}
-h1,h2,h3,.logo-text,.section-head h2,.page-title h1{font-family:var(--kf-head);letter-spacing:.01em}
-body:after{content:"";position:fixed;inset:-20%;z-index:-4;pointer-events:none;background:radial-gradient(40% 35% at 20% 25%,rgba(215,173,89,.16),transparent 70%),radial-gradient(38% 34% at 80% 70%,rgba(159,174,143,.22),transparent 70%);animation:keDrift 22s ease-in-out infinite alternate}
-@keyframes keDrift{to{transform:translate3d(4%,3%,0) scale(1.08)}}
-.product-grid,.categories{perspective:1100px}
-.card{position:relative;transform-style:preserve-3d;transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s;will-change:transform}
-.card.ke-tilt,.card.ke-tilt:hover{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateZ(6px);box-shadow:0 30px 70px rgba(22,25,24,.18);transition:transform .08s linear,box-shadow .3s}
-.card-media{position:relative;overflow:hidden}
-.card.ke-tilt .card-media:after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.38),transparent 55%)}
-.product-grid .card{animation:keUp .7s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(var(--i,0)*70ms)}
-@keyframes keUp{from{opacity:0;transform:translateY(34px) rotateX(12deg)}}
-.ke-rv{opacity:0;transform:translateY(28px) scale(.98);transition:opacity .8s ease,transform .8s cubic-bezier(.2,.8,.2,1)}
-.ke-rv.ke-in{opacity:1;transform:none}
-.hero-media video{filter:saturate(.88) contrast(1.06) sepia(.1) hue-rotate(-6deg)}
-.btn.primary{position:relative;overflow:hidden}
-.btn.primary:after{content:"";position:absolute;top:0;left:-70%;width:50%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);transition:left .7s}
-.btn.primary:hover:after{left:130%}
-.ke-fly{position:fixed;z-index:9999;object-fit:cover;pointer-events:none;box-shadow:0 24px 60px rgba(0,0,0,.35);transform-origin:center}
-.icon-btn{position:relative}
-.ke-pop{animation:kePop .6s cubic-bezier(.3,1.6,.5,1)}
-@keyframes kePop{0%{transform:scale(1)}30%{transform:scale(1.3) rotate(-10deg)}60%{transform:scale(.92) rotate(6deg)}100%{transform:scale(1)}}
-.ke-ring{position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--gold);pointer-events:none;animation:keRing .7s ease-out forwards}
-@keyframes keRing{to{transform:scale(2.2);opacity:0}}
-.tracking-search{flex-wrap:wrap;gap:10px}
-.tracking-search input{flex:1 1 200px;min-width:0}
-.ke-wa{display:inline-block;margin-top:14px}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.ke-rv{opacity:1;transform:none}}
 
-/* ===== KRYVEN ERA / LUXURY VISUAL FIXES ===== */
+/* KRYVEN ERA — FINAL PREMIUM FINISHING LAYER */
 :root{
-  --paper:#0b0d0f; --ink:#f5f1e8; --card:#15181c; --muted:#aeb4bd;
-  --line:rgba(215,173,89,.20); --silver:#c4cad2;
+  --ke-pista:#edf3e5;
+  --ke-pista-deep:#dfe9d4;
+  --ke-gold:#d7ad59;
+  --ke-gold-bright:#f1d58f;
+  --ke-silver:#c5cbd0;
+  --ke-ink:#171918;
 }
-body{
-  color:var(--ink)!important;
-  background:
-    radial-gradient(60% 45% at 12% 12%,rgba(215,173,89,.15),transparent 68%),
-    radial-gradient(50% 40% at 86% 20%,rgba(154,166,183,.16),transparent 65%),
-    radial-gradient(40% 45% at 50% 88%,rgba(88,111,96,.13),transparent 72%),
-    linear-gradient(140deg,#090b0d,#121416 46%,#090b0d)!important;
+html,body{background:linear-gradient(180deg,#f8faf5 0%,var(--ke-pista) 47%,#e8eee0 100%)!important;min-height:100%;}
+body{position:relative;isolation:isolate;overflow-x:hidden;}
+#app,.admin-shell{position:relative;z-index:2;}
+/* Blank-space finish: soft pista field + silver/gold light, without changing content layout. */
+body:before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle at 15% 18%,rgba(255,255,255,.78),transparent 30%),radial-gradient(circle at 88% 72%,rgba(215,173,89,.09),transparent 25%),linear-gradient(180deg,rgba(255,255,255,.14),rgba(223,233,212,.18));}
+.ke-site-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:.06;}
+.ke-site-bg video{width:100%;height:100%;object-fit:cover;filter:saturate(.7) contrast(.92) brightness(1.18);}
+.ke-bg-color-wash{position:absolute;inset:0;background:linear-gradient(180deg,rgba(245,250,239,.74),rgba(224,233,212,.86));}
+.ke-bg-vignette{position:absolute;inset:0;background:radial-gradient(circle at 50% 10%,transparent 0%,rgba(255,255,255,.1) 42%,rgba(180,190,175,.1) 100%);}
+/* Actual KRYVEN logo, used in header/footer/menu/admin. */
+.premium-logo{gap:9px!important;text-decoration:none;}
+.logo-image{width:40px!important;height:40px!important;border-radius:50%;object-fit:cover;display:block;box-shadow:0 8px 22px rgba(22,24,23,.12);background:#fff;}
+.logo-text{line-height:1.02!important;}
+.premium-logo .logo-text small{margin-top:5px;}
+.logo-avatar{overflow:hidden;padding:0!important;background:#fff!important;}
+.logo-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+.menu-profile-card .logo-avatar{flex:0 0 48px;width:48px;height:48px;}
+.premium-admin-logo .admin-logo-image{width:46px;height:46px;border-radius:50%;object-fit:cover;background:#fff;box-shadow:0 8px 22px rgba(22,24,23,.12);}
+.login-mark img{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#fff;box-shadow:0 10px 32px rgba(22,24,23,.14);}
+/* Search: transparent premium bar + visible recommendations. */
+.header .search{background:rgba(255,255,255,.18)!important;border-color:rgba(23,25,24,.18)!important;backdrop-filter:blur(14px);}
+.header .search:focus{background:rgba(255,255,255,.34)!important;}
+.search-overlay.show{display:flex!important;}
+.search-overlay{z-index:220!important;}
+.search-panel{border:1px solid rgba(23,25,24,.12)!important;background:rgba(249,251,246,.96)!important;backdrop-filter:blur(22px);box-shadow:0 30px 90px rgba(20,23,21,.20)!important;}
+.search-panel-head>div{display:grid;gap:3px;}
+.search-panel-kicker{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#8a8e88;}
+.search-result b{font-size:12px;}
+.search-result small{font-size:10px;}
+/* Premium button shine + initial website shine. */
+.btn.primary,.card-add,.checkout-submit{position:relative;overflow:hidden;box-shadow:0 10px 28px rgba(215,173,89,.16);}
+.btn.primary:after,.card-add:after,.checkout-submit:after{content:"";position:absolute;top:-60%;left:-22%;width:34%;height:220%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);transform:translateX(-180%) rotate(16deg);animation:keButtonShine 3.2s ease-in-out infinite;pointer-events:none;}
+@keyframes keButtonShine{0%,58%{transform:translateX(-180%) rotate(16deg);opacity:0}66%{opacity:1}78%,100%{transform:translateX(560%) rotate(16deg);opacity:0}}
+.ke-entry-shine{position:fixed;inset:-15%;z-index:10000;pointer-events:none;background:linear-gradient(115deg,transparent 43%,rgba(255,255,255,.04) 47%,rgba(255,255,255,.92) 50%,rgba(215,173,89,.14) 53%,transparent 57%);transform:translateX(-130%);mix-blend-mode:screen;animation:keEntry 1.15s cubic-bezier(.2,.8,.2,1) forwards;}
+@keyframes keEntry{to{transform:translateX(130%);}}
+.ke-enter-glow{animation:kePageGlow .95s ease-out both;}
+@keyframes kePageGlow{0%{filter:brightness(1.12)}100%{filter:brightness(1)}}
+/* Product recommendations and product-page finishing. */
+.premium-product-detail{position:relative;z-index:2;}
+.premium-product-info{background:rgba(255,255,255,.40);border:1px solid rgba(23,25,24,.08);border-radius:22px;padding:22px;backdrop-filter:blur(12px);}
+.premium-product-detail .product-section{background:rgba(255,255,255,.48);border:1px solid rgba(23,25,24,.07);border-radius:24px;padding:28px;margin-top:18px;box-shadow:0 18px 60px rgba(23,25,24,.05);}
+.premium-product-detail .premium-grid .card{background:rgba(255,255,255,.82);}
+.premium-three{background:linear-gradient(180deg,rgba(238,243,231,.82),rgba(211,216,220,.52))!important;border-color:rgba(23,25,24,.10)!important;}
+/* Logo cards / avatars on admin and account surfaces. */
+.account-auth-mark{overflow:hidden;background:#fff!important;box-shadow:0 10px 28px rgba(23,25,24,.10);}
+.account-auth-logo{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+/* Better mobile search surface. */
+@media(max-width:980px){
+  .header .search{background:rgba(255,255,255,.14)!important;}
+  .search-panel{top:72px;width:min(94vw,640px);}
+  .logo-image{width:36px!important;height:36px!important;}
+  .premium-product-detail .product-section{padding:20px;border-radius:18px;}
 }
-body:after{opacity:.55!important;background:radial-gradient(35% 28% at 18% 20%,rgba(215,173,89,.16),transparent 72%),radial-gradient(28% 32% at 82% 72%,rgba(190,200,214,.12),transparent 72%)!important}
-.header{background:rgba(8,10,12,.74)!important;border-bottom-color:rgba(215,173,89,.18)!important;color:#f5f1e8!important}
-.nav-links a{color:#dfe3e7}.search{background:rgba(19,22,25,.82)!important;color:#f5f1e8;border-color:rgba(196,202,210,.20)!important}.search::placeholder{color:#8d949c}.search-icon{color:#c8ced5}.scan-btn{background:#16191d;color:#e9edf1;border-color:rgba(215,173,89,.25)}
-.icon-btn{background:rgba(18,21,24,.78)!important;color:#f5f1e8;border-color:rgba(196,202,210,.22)!important;box-shadow:0 8px 24px rgba(0,0,0,.22)}
-.customer-icon-btn{border-color:rgba(215,173,89,.42)!important}.icon-shine{position:absolute;inset:4px;border-radius:50%;pointer-events:none;border:1px solid rgba(215,173,89,.18)}
-.ke-site-bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:#fff;pointer-events:none}.ke-site-bg video{width:100%;height:100%;object-fit:cover;opacity:.16;filter:saturate(1.08) contrast(1.02) brightness(1.05)}.ke-bg-color-wash{position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.72),rgba(248,248,244,.82));}.ke-bg-vignette{position:absolute;inset:0;background:radial-gradient(circle at center,transparent 35%,rgba(255,255,255,.32) 100%)}
-.hero{background:#07090b}.premium-hero .hero-media{background:#07090b}.premium-hero .hero-image{opacity:.30!important}.premium-hero .hero-video{display:block!important;opacity:.72;filter:saturate(.96) contrast(1.06) brightness(.80)}.hero-media-glow{position:absolute;inset:0;background:radial-gradient(48% 60% at 22% 50%,rgba(215,173,89,.18),transparent 68%),radial-gradient(44% 58% at 83% 42%,rgba(178,190,205,.12),transparent 70%);pointer-events:none}.hero-vignette{background:linear-gradient(90deg,rgba(3,5,7,.62),rgba(3,5,7,.22) 56%,rgba(3,5,7,.15)),linear-gradient(0deg,rgba(3,5,7,.55),transparent 42%)!important}
-.hero h1 span,.section-head h2,.page-title h1{color:#f2d08c;text-shadow:0 0 36px rgba(215,173,89,.10)}
-.card,.trust-card,.bag-list,.checkout-card,.summary-card,.account-page-card,.premium-panel,.checkout-panel,.checkout-summary-card,.review-card{background:linear-gradient(155deg,rgba(255,255,255,.96),rgba(245,246,242,.96))!important;color:#1f2421!important;border-color:rgba(196,202,210,.15)!important;box-shadow:0 22px 70px rgba(0,0,0,.26)!important}.card:hover{box-shadow:0 28px 90px rgba(0,0,0,.34)!important}.card .meta,.trust-card span,.muted,.checkout-help{color:#aeb4bd}.card-body h3,.trust-card b,.checkout-panel h3,.summary-card h3{color:#f7f2e7}.size{background:#20252a!important;color:#f0f2f4;border-color:rgba(196,202,210,.17)}.size.off{color:#7d858e}
-.footer{background:linear-gradient(180deg,rgba(14,17,19,.85),rgba(7,9,11,.96))!important;border-top-color:rgba(215,173,89,.17)!important}.footer-grid a,.footer-note{color:#9fa6ae}.drop-ribbon{background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(215,173,89,.08))!important;color:#ece6d8;border-color:rgba(215,173,89,.18)}
-.field input,.field textarea,.field select,.checkout-field input,.checkout-field textarea{background:#111418!important;color:#f4f0e7!important;border-color:rgba(196,202,210,.18)!important}.field label,.checkout-field label{color:#c8ced4}
-.search-overlay,.modal-card,.drawer-panel{background:linear-gradient(155deg,#171b20,#0e1013)!important;color:#f5f1e8!important;border-color:rgba(215,173,89,.18)!important}.search-result,.menu-item-btn{color:#f5f1e8}.secure-qr-box{width:220px;height:220px;margin:18px auto;background:#fff;border-radius:16px;padding:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 12px 45px rgba(0,0,0,.35)}.secure-qr-box img{width:100%;height:100%;object-fit:contain}
-.card-add{position:absolute;left:12px;right:12px;bottom:12px;height:42px;border-radius:999px;background:linear-gradient(90deg,rgba(215,173,89,.96),rgba(233,209,150,.96));color:#111315;font-weight:900;letter-spacing:.12em;font-size:10px;transform:translateY(70px);transition:transform .28s ease,box-shadow .28s ease;z-index:4;box-shadow:0 12px 26px rgba(0,0,0,.24)}.card:hover .card-add,.card:focus-within .card-add{transform:translateY(0)}.card-add:active{transform:translateY(2px) scale(.98)}
-.premium-pay-modal .upi-card{background:linear-gradient(155deg,#1b2025,#0e1114)!important;border-color:rgba(215,173,89,.2)!important}.payment-warning{font-size:11px;line-height:1.55;color:#c8cfd7;margin-top:14px;text-align:center}.checkout-payment.is-enabled{background:rgba(28,32,36,.82)!important;color:#f3efe6;border-color:rgba(196,202,210,.16)!important}.checkout-payment.is-disabled{background:rgba(28,32,36,.46)!important;color:#737b83}
-@media(max-width:980px){.nav{gap:9px}.nav-links{display:none}.search-wrap{min-width:0}.search{height:40px}.nav-actions{gap:4px}.icon-btn{width:37px;height:37px}.hero,.hero-grid{min-height:620px}.premium-hero .hero-video{opacity:.56}.ke-site-bg video{opacity:.16}.card-add{transform:none}}
 
-.tracking-order-items{display:grid;gap:10px;margin:18px 0}.tracking-order-item{display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.78)}.tracking-order-item img{width:64px;height:72px;object-fit:cover;border-radius:10px}.tracking-order-item div{display:grid;gap:2px}.tracking-order-item span,.tracking-order-item small{font-size:11px;color:var(--muted)}
+.ke-standalone-brand{display:flex;align-items:center;gap:14px;margin-bottom:24px}.ke-standalone-brand img{width:52px;height:52px;border-radius:50%;object-fit:cover;background:#fff;box-shadow:0 10px 30px rgba(23,25,24,.13)}.ke-standalone-brand strong{font:700 28px/1 "Playfair Display",Georgia,serif;display:block;margin-top:4px}
