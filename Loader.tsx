@@ -1,0 +1,3 @@
+'use client';
+import {motion} from 'framer-motion';
+export default function Loader(){return <motion.div initial={{opacity:1}} animate={{opacity:0,pointerEvents:'none'}} transition={{delay:1.4,duration:.6}} className="fixed inset-0 z-[100] grid place-items-center bg-[#080808]"><motion.div initial={{scale:.8,opacity:0}} animate={{scale:1,opacity:1}} transition={{duration:.8}} className="text-center"><div className="font-display text-5xl tracking-[.15em] text-chrome2 text-shine">KRYVEN</div><div className="mt-2 text-[10px] tracking-[.55em] text-kred">ENTER THE ERA</div></motion.div></motion.div>}
