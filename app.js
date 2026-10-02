@@ -193,6 +193,14 @@ function productDetail(p){
     <section class="product-section rating-last"><div class="eyebrow">Reviews</div><h2>RATING & CUSTOMER REVIEWS.</h2><div class="rating-big">★★★★★ <span>${p.rating} · ${p.reviews} reviews</span></div><div class="review-grid">${state.reviews.filter(r=>r.productId===p.id).map(reviewHTML).join('')||`<div class="muted">No customer reviews yet. Verified customer reviews appear here after delivery.</div>`}</div><button class="btn" style="margin-top:14px" onclick="openReviewForm('${esc(p.id)}')">Write a review</button></section>
   </div>`;
 }
+function supportPage(){
+  const raw=String(state.settings?.whatsapp||'7036421785').replace(/\D/g,'');
+  const phone=raw.length===10?'91'+raw:raw;
+  const display=raw.length===10?'+91 '+raw.slice(0,5)+' '+raw.slice(5):'+'+raw;
+  const wa='https://wa.me/'+phone+'?text='+encodeURIComponent('Hello KRYVEN ERA, I need help with my order.');
+  return `<div class="support-page"><div class="checkout-card support-card"><div class="eyebrow">CUSTOMER CARE</div><h2>Need help with your order?</h2><p class="muted">${esc(state.settings?.supportText||'Mon–Sat · 10 AM–7 PM')}</p><div class="support-actions"><a class="btn primary" href="tel:${esc(phone)}">CALL ${esc(display)}</a><a class="btn success" href="${esc(wa)}" target="_blank" rel="noopener">CHAT ON WHATSAPP</a></div><p class="muted" style="margin-top:14px">Tap Call to open your phone dialer.</p></div></div>`;
+}
+
 function pageShell(title,content){return `${header()}<main class="container page-main"><div class="page-title"><div class="eyebrow">KRYVEN ERA</div><h1>${esc(title)}</h1></div>${content}</main>${footer()}${drawDrawer()}${drawModal()}`}
 
 function bagPage(){
@@ -497,6 +505,7 @@ async function validateCartForOrder(){
   return true;
 }
 async function savePendingOrder(order){order.status='Awaiting Payment Verification';order.paymentVerified=false;return saveOrderToSupabase(order)}
+async function savePlacedCODOrder(order){order.status='Placed';order.paymentVerified=false;order.placedAt=new Date().toISOString();const ok=await saveOrderToSupabase(order);if(ok)applyLocalOrder(order);return ok}
 async function updateCloudOrder(order){
   try{
     if(!order?.cloudRowId)return true;
@@ -772,6 +781,12 @@ window.placeOrder=async()=>{
     const advancePaid=payment==='cod'?Math.round(total*codPct/100):total;
     const customerId=getCustomerId();
     const order={id,createdAt:new Date().toISOString(),customerId,customer:{id:customerId,name,email,phone,address,landmark,houseNumber,city,state:stateName,pincode},items:structuredClone(state.cart).map(x=>({...x,image:product(x.id)?.images?.[0]||'',name:product(x.id)?.name||x.id,unitPrice:Number(product(x.id)?.price||0)})),subtotal:sub,discount,total,payment,status:'Awaiting Payment Verification',referralSource:source,advancePaid,remainingDue:Math.max(0,total-advancePaid),codAdvancePercent:payment==='cod'?codPct:null,paymentVerified:false,catalogCheckedAt:new Date().toISOString()};
+    if(payment==='cod'){
+      const saved=await savePlacedCODOrder(order);
+      if(!saved)return;
+      showPaymentSuccess(order.id,'cod');
+      return;
+    }
     const saved=await savePendingOrder(order);
     if(!saved)return;
     await showPaymentGateway(order,payment);
