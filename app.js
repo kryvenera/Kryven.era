@@ -44,6 +44,56 @@ const KEY='kryven-era-state-v3';
 const DEFAULT_HERO_VIDEO='kryven-era-hero-temp.mp4';
 function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||structuredClone(defaultState)}catch{return structuredClone(defaultState)}}
 let state=loadState();
+
+const CATEGORY_DEFAULTS = ['T-Shirts','Hoodies','Pants','Jackets','Accessories'];
+const OFFER_DEFAULTS = {
+  grandOpening:{enabled:true,title:'GRAND OPENING',subtitle:'LIMITED-TIME OFFERS ARE LIVE',note:'Shop the launch offers before they end.'},
+  percent50:{enabled:true,label:'50% OFF',subtitle:'FLAT 50% OFF',note:'Apply to selected products from Admin.',defaultPercent:50},
+  bogo:{enabled:true,label:'BUY 1 GET 1 FREE',subtitle:'BUY 1 GET 1 FREE',note:'Same product: add 2 to bag and 1 is free.'}
+};
+function ensureMerchandisingSettings(s){
+  s=s||{};
+  s.categories=Array.isArray(s.categories)&&s.categories.length
+    ? s.categories.map(x=>typeof x==='string'?{name:x,enabled:true}:Object.assign({name:'Untitled',enabled:true},x)).filter(x=>x.name)
+    : CATEGORY_DEFAULTS.map(name=>({name,enabled:true}));
+  s.offers=Object.assign({},structuredClone(OFFER_DEFAULTS),s.offers||{});
+  s.offers.grandOpening=Object.assign({},OFFER_DEFAULTS.grandOpening,s.offers.grandOpening||{});
+  s.offers.percent50=Object.assign({},OFFER_DEFAULTS.percent50,s.offers.percent50||{});
+  s.offers.bogo=Object.assign({},OFFER_DEFAULTS.bogo,s.offers.bogo||{});
+  return s;
+}
+function isProductOfferActive(p,type){
+  const o=p?.offer||{};
+  return !!o.enabled&&o.type===type&&!!(type==='percent'?state.settings?.offers?.percent50?.enabled:state.settings?.offers?.bogo?.enabled);
+}
+function getOfferPercent(p){return Math.max(1,Math.min(100,Number(p?.offer?.percent||50)))}
+function getOfferLinePrice(p,qty=1){
+  const q=Math.max(0,Number(qty||0));
+  if(!p||!q)return 0;
+  if(isProductOfferActive(p,'percent'))return Math.round(p.price*q*(1-getOfferPercent(p)/100));
+  if(isProductOfferActive(p,'bogo'))return p.price*(q-Math.floor(q/2));
+  return p.price*q;
+}
+function getOfferDiscount(p,qty=1){return Math.max(0,p.price*Math.max(0,Number(qty||0))-getOfferLinePrice(p,qty))}
+function getCartPricing(coupon=''){
+  let subtotal=0,offerDiscount=0;
+  state.cart.forEach(x=>{const p=product(x.id);if(!p)return;const q=Math.max(1,Number(x.qty||1));subtotal+=p.price*q;offerDiscount+=getOfferDiscount(p,q)});
+  const afterOffers=Math.max(0,subtotal-offerDiscount);
+  const couponDiscount=discountAmount(afterOffers,coupon);
+  const shipping=Number(state.settings.shipping||0);
+  return {subtotal,offerDiscount,couponDiscount,discount:offerDiscount+couponDiscount,shipping,total:afterOffers-couponDiscount+shipping};
+}
+function offerBadge(p){
+  if(isProductOfferActive(p,'percent'))return `<span class="offer-badge-red">${esc(state.settings.offers.percent50?.label||`${getOfferPercent(p)}% OFF`)}</span>`;
+  if(isProductOfferActive(p,'bogo'))return `<span class="offer-badge-red">${esc(state.settings.offers.bogo?.label||'BUY 1 GET 1 FREE')}</span>`;
+  return '';
+}
+function offerPriceMarkup(p){
+  return isProductOfferActive(p,'percent')
+    ? `<div class="price-row"><div class="price">${money(getOfferLinePrice(p,1))}</div><div class="mrp">${money(p.price)}</div><div class="discount">${esc(state.settings.offers.percent50?.label||`${getOfferPercent(p)}% OFF`)}</div></div>`
+    : `<div class="price-row"><div class="price">${money(p.price)}</div><div class="mrp">${money(p.mrp)}</div><div class="discount">${esc(p.discount||'')}</div></div>`;
+}
+ensureMerchandisingSettings(state.settings);
 function ensureVariantVisuals(){
   const tee=state.products?.find(p=>p.id==='KE001');
   if(!tee)return;
@@ -84,6 +134,7 @@ function hydrateState(){
   ensureVariantVisuals();
 }
 hydrateState();
+ensureMerchandisingSettings(state.settings);
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 
 // LIVE CATALOG SYNC: the storefront reads the shared catalog from
@@ -102,7 +153,7 @@ async function loadLiveCatalog(){
     if(next===__liveCatalogHash)return true;
     __liveCatalogHash=next;
     const incomingSettings=cloud.settings||{};
-    state.settings=Object.assign({},state.settings,incomingSettings);
+    state.settings=ensureMerchandisingSettings(Object.assign({},state.settings,incomingSettings));
     // Keep the bundled temporary media as a working fallback when Admin has an empty media field.
     if(!state.settings.heroVideo || String(state.settings.heroVideo).trim()==='') state.settings.heroVideo=DEFAULT_HERO_VIDEO;
     if(!state.settings.backgroundVideo || String(state.settings.backgroundVideo).trim()==='') state.settings.backgroundVideo=DEFAULT_HERO_VIDEO;
@@ -441,7 +492,7 @@ window.openWishlist=openWishlist;
 function renderTrackedOrder(o){
   ensureOrderTracking(o);
   const idx=STATUS_FLOW.indexOf(o.status);
-  const items=(o.items||[]).map(it=>`<div class="tracking-order-item"><img src="${esc(orderItemPhoto(it)||IMG.tshirt)}" alt=""><div><b>${esc(it.name||product(it.id)?.name||it.id||'Product')}</b><span>Size: ${esc(it.size||'—')} · ${esc(it.color||'Default')} · Qty: ${Number(it.qty||1)}</span><small>${money((product(it.id)?.price||it.price||0)*Number(it.qty||1))}</small></div></div>`).join('');
+  const items=(o.items||[]).map(it=>`<div class="tracking-order-item"><img src="${esc(orderItemPhoto(it)||IMG.tshirt)}" alt=""><div><b>${esc(it.name||product(it.id)?.name||it.id||'Product')}</b><span>Size: ${esc(it.size||'—')} · ${esc(it.color||'Default')} · Qty: ${Number(it.qty||1)}</span><small>${money(it.lineTotal!=null?it.lineTotal:getOfferLinePrice(product(it.id)||{price:it.price||0},Number(it.qty||1)))}</small></div></div>`).join('');
   return `<div class="tracking-card"><div class="tracking-card-top"><div><div class="eyebrow">${esc(o.id)}</div><h3>${esc(STATUS_COPY[o.status]||o.status)}</h3><p class="muted">Customer ID: <b>${esc(o.customer?.customerId||'—')}</b><br>Last updated ${fmtDate(o.lastUpdatedAt||o.createdAt)}</p></div><div class="eta-box"><span>EXPECTED ARRIVAL</span><b>${fmtDay(o.expectedDeliveryDate)}</b><small>${esc(o.deliveryWindow)}</small></div></div><div class="tracking-progress">${STATUS_FLOW.map((st,i)=>`<div class="track-step ${i<=idx?'done':''} ${st===o.status?'current':''}"><span>${i<idx?'✓':i===idx?'●':'○'}</span><b>${st}</b><small>${fmtDate((o.timeline.find(t=>t.status===st)||{}).at||o.createdAt,{dateStyle:'medium'})}</small></div>`).join('')}</div><div class="tracking-order-items">${items||'<div class="muted">No product details available.</div>'}</div><div class="tracking-meta"><div><span>Payment</span><b>${esc(String(o.payment||'COD').toUpperCase())}</b></div><div><span>Total</span><b>${money(o.total)}</b></div><div><span>Courier</span><b>${esc(o.courier||'Pending')}</b></div><div><span>Tracking No.</span><b>${esc(o.trackingNumber||'Pending')}</b></div></div>${o.customerNote?`<div class="customer-note"><b>NOTE FROM KRYVEN ERA</b><p>${esc(o.customerNote)}</p></div>`:''}</div>`;
 }
 function openTracking(e){e?.preventDefault();openDrawer(`<div class="drawer-head"><h3>Track / Check Order</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="form-section" style="margin-top:15px"><div class="field"><label>Customer ID or Order ID</label><input id="trackId" placeholder="e.g. KE-C-XXXXXX or KE-2026-001" autocomplete="off"/></div><button class="btn primary" style="margin-top:12px" onclick="trackOrder()">CHECK DETAILS</button><div id="trackResult" style="margin-top:18px"></div></div>`)}
@@ -612,9 +663,29 @@ function header(){const home=document.body.dataset.page==='home';return `<header
   <div class="nav-actions"><button class="icon-btn menu-btn" title="Menu" aria-label="Open menu" onclick="openMenu()"><span class="menu-lines"><i></i><i></i><i></i></span></button><button class="icon-btn wishlist-btn ${state.wishlist.length?'has-wishlist':''}" title="Wishlist" aria-label="Wishlist" onclick="openWishlist(event)">♡<span class="badge">${state.wishlist.length||''}</span></button><button class="icon-btn customer-btn customer-icon-btn" title="Customer details" aria-label="Customer details" onclick="openProfile()">◎<span class="icon-shine"></span></button><button class="icon-btn bag-btn" title="Bag" aria-label="Bag" onclick="openBag()">👜<span class="badge">${totalItems()||''}</span></button></div>
 </div></header>`} 
 function hero(){const hv=(state.settings.heroVideo||DEFAULT_HERO_VIDEO).trim()||DEFAULT_HERO_VIDEO;return `<section id="home" class="hero premium-hero"><div class="hero-media"><div class="hero-image" style="background-image:url('${IMG.hero}')"></div><video class="hero-video" autoplay muted loop playsinline preload="auto" poster="${IMG.hero}" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='kryven-era-hero-temp.mp4';this.play().catch(()=>{})}else{this.style.display='none'}" src="${esc(hv)}"></video><div class="hero-vignette"></div><div class="hero-media-glow"></div></div><div class="container hero-grid premium-hero-grid"><div class="hero-copy"><div class="kicker">KRYVEN ERA / 2026 COLLECTION</div><h1>WEAR<br><span>YOUR ERA.</span></h1><p>Not just clothing. A mindset. Premium streetwear engineered for presence, detail and movement.</p><div class="hero-cta"><a class="btn primary" href="shop.html">EXPLORE COLLECTION →</a><button class="btn ghost" onclick="openCategory('T-Shirts')">VIEW THE DROP</button></div><div class="hero-mini-meta"><span>01 / PREMIUM FABRICS</span><span>02 / LIMITED DROPS</span><span>03 / SECURE CHECKOUT</span></div></div><div class="hero-side-note"><div class="hero-side-line"></div><div>SCROLL TO ENTER THE ERA</div></div></div></section>`}
-function categories(){const cats=['T-Shirts','Hoodies','Pants','Jackets','Accessories'];return `<section id="categories" class="section editorial-section"><div class="container"><div class="section-head"><div><div class="eyebrow">01 / CATEGORIES</div><h2>THE ERA, YOUR WAY.</h2></div><p class="muted">Explore signature silhouettes, monochrome layers and statement pieces.</p></div><div class="categories premium-categories">${cats.map((c,i)=>{const p=state.products.find(x=>x.category===c)||state.products[i%Math.max(state.products.length,1)];return p?`<button class="cat premium-cat" onclick="openCategory('${c}')"><img src="${p.images[0]}" onerror="imgFallback()"/><div class="cat-shade"></div><div class="cat-index">0${i+1}</div><div class="cat-info"><b>${c}</b><span>${state.products.filter(x=>x.category===c).length||1} pieces · EXPLORE →</span></div></button>`:''}).join('')}</div></div></section>`}
-function productCard(p){const wished=state.wishlist.includes(p.id);return `<article class="card premium-card" onclick="openProduct('${esc(p.id)}')"><div class="card-media"><img src="${esc(p.images?.[0]||IMG.tshirt)}" onerror="imgFallback()" alt="${esc(p.name)}"><span class="pill">${esc(p.discount||'LIMITED')}</span><button class="like ${wished?'active':''}" onclick="event.stopPropagation();toggleWishlist('${esc(p.id)}')">${wished?'♥':'♡'}</button><button class="card-add" onclick="event.stopPropagation();quickAddToBag('${esc(p.id)}')">ADD TO BAG</button></div><div class="card-body"><div class="eyebrow">${esc(p.category)} / ${esc(p.id)}</div><h3>${esc(p.name)}</h3><div class="meta">★ ${p.rating} · ${p.reviews} reviews</div><div class="price-row"><div class="price">${money(p.price)}</div><div class="mrp">${money(p.mrp)}</div><div class="discount">${esc(p.discount)}</div></div><div class="size-row">${Object.entries(p.sizes||{}).map(([sz,on])=>`<span class="size ${on?'':'off'}">${esc(sz)}</span>`).join('')}</div></div></article>`}
-function shop(){return `<section id="shop" class="section editorial-section"><div class="container"><div class="drop-banner"><div><div class="eyebrow">02 / FEATURED COLLECTION</div><h2>THE DROP.</h2><p class="muted">Curated essentials built around the Kryven silhouette.</p></div><a class="text-link" href="shop.html">VIEW ALL →</a></div><div class="limited-strip"><span>LIMITED DROP</span><b>THE ERA OF UNCOMPROMISING STYLE</b><em>FREE SHIPPING ON ELIGIBLE ORDERS</em></div><div class="product-grid premium-grid">${state.products.map(productCard).join('')}</div></div></section>`}
+function offersBanner(){
+  const o=ensureMerchandisingSettings(state.settings).offers;
+  if(!o?.grandOpening?.enabled)return '';
+  return `<section class="grand-opening-offers"><div class="container"><div class="offer-opening-head"><div><div class="offer-kicker-red">GRAND OPENING / LIMITED TIME</div><h2>${esc(o.grandOpening.title)}</h2><p>${esc(o.grandOpening.subtitle)}</p></div><span class="offer-live-pill">LIVE NOW</span></div><div class="offer-cards-red">
+    ${o.percent50?.enabled?`<article class="offer-card-red"><span>${esc(o.percent50.label)}</span><b>${esc(o.percent50.subtitle)}</b><small>${esc(o.percent50.note)}</small></article>`:''}
+    ${o.bogo?.enabled?`<article class="offer-card-red"><span>${esc(o.bogo.label)}</span><b>${esc(o.bogo.subtitle)}</b><small>${esc(o.bogo.note)}</small></article>`:''}
+  </div>${o.grandOpening.note?`<div class="offer-opening-note">${esc(o.grandOpening.note)}</div>`:''}</div></section>`;
+}
+function activeCategories(){
+  return ensureMerchandisingSettings(state.settings).categories.filter(c=>c.enabled).map(c=>c.name);
+}
+function categories(){
+  const cats=activeCategories();
+  return `<section id="categories" class="section editorial-section"><div class="container"><div class="section-head"><div><div class="eyebrow">01 / CATEGORIES</div><h2>THE ERA, YOUR WAY.</h2></div><p class="muted">Explore signature silhouettes, monochrome layers and statement pieces.</p></div><div class="categories premium-categories">${cats.map((c,i)=>{const p=state.products.find(x=>x.category===c);return p?`<button class="cat premium-cat" onclick='openCategory(${JSON.stringify(c)})'><img src="${esc(p.images?.[0]||IMG.tshirt)}" onerror="imgFallback()"/><div class="cat-shade"></div><div class="cat-index">${String(i+1).padStart(2,'0')}</div><div class="cat-info"><b>${esc(c)}</b><span>${state.products.filter(x=>x.category===c).length} pieces · EXPLORE →</span></div></button>`:''}).join('')}</div></div></section>`;
+}
+function productCard(p){
+  const wished=state.wishlist.includes(p.id);
+  return `<article class="card premium-card ${isProductOfferActive(p,'percent')||isProductOfferActive(p,'bogo')?'offer-product-red':''}" onclick="openProduct('${esc(p.id)}')"><div class="card-media"><img src="${esc(p.images?.[0]||IMG.tshirt)}" onerror="imgFallback()" alt="${esc(p.name)}">${offerBadge(p)}<span class="pill">${esc(p.discount||'LIMITED')}</span><button class="like ${wished?'active':''}" onclick="event.stopPropagation();toggleWishlist('${esc(p.id)}')">${wished?'♥':'♡'}</button><button class="card-add" onclick="event.stopPropagation();quickAddToBag('${esc(p.id)}')">ADD TO BAG</button></div><div class="card-body"><div class="eyebrow">${esc(p.category)} / ${esc(p.id)}</div><h3>${esc(p.name)}</h3><div class="meta">★ ${p.rating} · ${p.reviews} reviews</div>${offerPriceMarkup(p)}${isProductOfferActive(p,'bogo')?`<div class="offer-note-red">${esc(state.settings.offers.bogo?.note||'Add 2 to get 1 free')}</div>`:''}<div class="size-row">${Object.entries(p.sizes||{}).map(([sz,on])=>`<span class="size ${on?'':'off'}">${esc(sz)}</span>`).join('')}</div></div></article>`;
+}
+function shop(){
+  const cats=activeCategories();
+  return `<section id="shop" class="section editorial-section"><div class="container"><div class="drop-banner"><div><div class="eyebrow">02 / FEATURED COLLECTION</div><h2>THE DROP.</h2><p class="muted">Curated essentials built around the Kryven silhouette.</p></div><a class="text-link" href="shop.html">VIEW ALL →</a></div><div class="limited-strip"><span>LIMITED DROP</span><b>THE ERA OF UNCOMPROMISING STYLE</b><em>FREE SHIPPING ON ELIGIBLE ORDERS</em></div><div class="product-grid premium-grid">${state.products.map(productCard).join('')}</div>${cats.length?`<div class="chips category-chip-row">${cats.map(c=>`<button class="chip" onclick='openCategory(${JSON.stringify(c)})'>${esc(c)}</button>`).join('')}</div>`:''}</div></section>`;
+}
 function trust(){return `<section class="section trust-section"><div class="container trust premium-trust"><div class="trust-card"><span>01</span><b>Premium Quality</b><small>Heavyweight fabrics & refined finishing.</small></div><div class="trust-card"><span>02</span><b>Fast Dispatch</b><small>Order updates from packing to delivery.</small></div><div class="trust-card"><span>03</span><b>Secure Payments</b><small>UPI, cards and COD flows.</small></div><div class="trust-card"><span>04</span><b>3D Product View</b><small>Rotate, zoom and inspect every piece.</small></div></div></section>`}
 function footer(){return `<footer class="footer premium-footer"><div class="container footer-grid"><div><div>${logo()}</div><p class="muted" style="line-height:1.8;max-width:390px">KRYVEN ERA — premium streetwear for people who move different. THE ERA OF UNCOMPROMISING STYLE.</p></div><div><b>COLLECTION</b><a href="shop.html">Shop all</a><a href="categories.html">Categories</a><a href="wishlist.html">Wishlist</a></div><div><b>ORDER</b><a href="tracking.html">Track order</a><a href="checkout.html">Checkout</a><a href="customer-details.html">Customer details</a></div><div><b>CONTACT</b><a href="help-care.html">Help & Care</a><a href="admin.html">Admin Panel</a><a href="https://wa.me/${esc(state.settings.whatsapp||'')}" target="_blank">WhatsApp</a></div></div><div class="container footer-note">© 2026 KRYVEN ERA · THE ERA OF UNCOMPROMISING STYLE.</div></footer>`}
 function productDetail(p){
@@ -638,7 +709,7 @@ function productDetail(p){
       </div>
       <div class="product-info premium-product-info">
         <div class="eyebrow">${esc(p.category)} / ${esc(p.id)}</div><h1>${esc(p.name)}</h1>
-        <div class="price-row"><div class="price">${money(p.price)}</div><div class="mrp">${money(p.mrp)}</div><div class="discount">${esc(p.discount)}</div></div>
+        ${offerBadge(p)}${offerPriceMarkup(p)}
         <div class="rating-big">★★★★★ <span>${p.rating} · ${p.reviews} reviews</span></div>
         <p class="desc">${esc(p.description)}</p>
         <div class="detail-label">COLOUR</div>
@@ -663,12 +734,11 @@ function openProduct(id){location.href=`product.html?id=${encodeURIComponent(id)
 
 function bagPage(){
   if(!state.cart.length) return `<div class="empty-state bag-empty"><div class="eyebrow">YOUR BAG</div><h2>EMPTY FOR NOW.</h2><p class="muted">The next piece of your era is waiting.</p><a class="btn primary" href="shop.html">EXPLORE COLLECTION →</a></div>`;
-  const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0);
-  return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-line"><img src="${p.images[0]}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3><p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'—')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(sub)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(sub+state.settings.shipping)}</b></div><button class="btn primary" style="width:100%;margin-top:14px" onclick="openCheckout()">PROCEED TO CHECKOUT →</button></aside></div>`;
+  const pricing=getCartPricing('');
+  return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);const q=Math.max(1,Number(x.qty||1));return `<div class="bag-line"><img src="${esc(p.images?.[0]||IMG.tshirt)}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3>${offerBadge(p)}<p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'—')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${q}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(getOfferLinePrice(p,q))}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(pricing.subtotal)}</span></div><div class="summary-row"><span>Offer savings</span><span>−${money(pricing.offerDiscount)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(pricing.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(pricing.total)}</b></div><button class="btn primary" style="width:100%;margin-top:14px" onclick="openCheckout()">PROCEED TO CHECKOUT →</button></aside></div>`;
 }
-
 function renderPage(){const page=document.body.dataset.page||'home';
-  if(page==='home') return `${header()}${hero()}${categories()}${shop()}${trust()}${footer()}${drawDrawer()}${drawModal()}`;
+  if(page==='home') return `${header()}${hero()}${offersBanner()}${categories()}${shop()}${trust()}${footer()}${drawDrawer()}${drawModal()}`;
   if(page==='shop') return pageShell('Shop Collection',shop());
   if(page==='categories') return pageShell('Categories',categories());
   if(page==='product'){const p=product(new URLSearchParams(location.search).get('id')||state.products[0]?.id);return pageShell('Product Details',p?productDetail(p):'<div class="empty-state">Product not found.</div>');}
@@ -722,24 +792,22 @@ function checkoutPaymentMethods(){
 }
 function checkoutMarkup(){
   if(!state.cart.length)return '<div class="empty-state">Your bag is empty.</div>';
-  const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0);
-  const shipping=Number(state.settings.shipping||0);
-  const total=sub+shipping;
+  const pricing=getCartPricing('');
   const codPct=Math.max(0,Math.min(100,Number(state.settings.payments?.codAdvancePercent??20)));
-  const codAdvance=Math.round(total*codPct/100);
-  const remaining=Math.max(0,total-codAdvance);
+  const codAdvance=Math.round(pricing.total*codPct/100);
+  const remaining=Math.max(0,pricing.total-codAdvance);
   return `<div class="checkout-redesign">
     <div class="checkout-intro"><div><div class="eyebrow">KRYVEN ERA / SECURE CHECKOUT</div><h2>Complete your order.</h2><p class="muted">Fast, clean and built for mobile. Your details stay with this order and can be reused later.</p></div><div class="checkout-step-badge"><span>STEP 01</span><b>DELIVERY DETAILS</b></div></div>
     <form class="checkout-layout" id="checkoutForm" onsubmit="event.preventDefault();placeOrder();" novalidate>
       <div class="checkout-main">
         <section class="checkout-panel"><div class="checkout-panel-head"><div><span>01</span><h3>Customer details</h3></div><small>Required fields are marked *</small></div>${checkoutCustomerFields()}</section>
         <section class="checkout-panel"><div class="checkout-panel-head"><div><span>02</span><h3>Payment method</h3></div><small>Choose an enabled method</small></div>${checkoutPaymentMethods()}</section>
-        <section class="checkout-panel"><div class="checkout-panel-head"><div><span>03</span><h3>Offer code</h3></div><small>Optional</small></div><div class="checkout-coupon"><input id="coupon" placeholder="Enter KRYVEN10"><button type="button" class="btn" onclick="applyCheckoutCoupon()">APPLY</button></div><div id="couponMsg" class="checkout-help"></div></section>
+        <section class="checkout-panel"><div class="checkout-panel-head"><div><span>03</span><h3>Offer code</h3></div><small>Optional</small></div><div class="checkout-coupon"><input id="coupon" placeholder="Enter KRYVEN10"><button type="button" class="btn" onclick="applyCheckoutCoupon()">APPLY</button></div><div id="couponMsg" class="checkout-help">Product offers are applied automatically.</div></section>
       </div>
       <aside class="checkout-summary-card">
         <div class="summary-kicker">ORDER SUMMARY</div>
-        <div class="checkout-items">${state.cart.map(x=>{const p=product(x.id);return `<div class="checkout-item"><img src="${esc(p.images?.[0]||'')}" alt=""><div><b>${esc(p.name)}</b><small>${esc(x.color||'Black')} · Size ${esc(x.size||'—')} · Qty ${x.qty}</small></div><strong>${money(p.price*x.qty)}</strong></div>`}).join('')}</div>
-        <div class="checkout-total-lines"><div><span>Subtotal</span><b id="sumSub">${money(sub)}</b></div><div><span>Discount</span><b id="sumDisc">${money(0)}</b></div><div><span>Shipping</span><b>${shipping?money(shipping):'FREE'}</b></div><div class="grand"><span>Total</span><b id="sumTotal">${money(total)}</b></div></div>
+        <div class="checkout-items">${state.cart.map(x=>{const p=product(x.id);const q=Math.max(1,Number(x.qty||1));return `<div class="checkout-item"><img src="${esc(p.images?.[0]||'')}" alt=""><div><b>${esc(p.name)}</b>${offerBadge(p)}<small>${esc(x.color||'Black')} · Size ${esc(x.size||'—')} · Qty ${q}</small></div><strong>${money(getOfferLinePrice(p,q))}</strong></div>`}).join('')}</div>
+        <div class="checkout-total-lines"><div><span>Subtotal</span><b id="sumSub">${money(pricing.subtotal)}</b></div><div><span>Offer savings</span><b id="sumOffer">−${money(pricing.offerDiscount)}</b></div><div><span>Coupon discount</span><b id="sumDisc">${money(0)}</b></div><div><span>Shipping</span><b>${pricing.shipping?money(pricing.shipping):'FREE'}</b></div><div class="grand"><span>Total</span><b id="sumTotal">${money(pricing.total)}</b></div></div>
         <div class="cod-split-card"><div><span>COD PAYMENT SPLIT</span><b>${codPct}% now</b></div><div class="cod-amounts"><strong>${money(codAdvance)}</strong><span>now</span><strong>${money(remaining)}</strong><span>after delivery</span></div><small>This split follows the COD percentage set by Admin.</small></div>
         <button class="btn primary checkout-submit" type="submit" ${state.settings.payments?.cod||state.settings.payments?.upi||state.settings.payments?.card?'':'disabled'}>PLACE ORDER SECURELY →</button>
         <div class="checkout-secure-note">✓ Admin controls COD / UPI / Card availability<br>✓ Email is optional<br>✓ Landmark is required · House/building number is optional</div>
@@ -761,35 +829,30 @@ function validateCheckoutForm(){
 }
 function syncCheckoutProfile(){state.profile={...state.profile,customerId:getCustomerId(),name:document.getElementById('coName')?.value.trim()||'',phone:document.getElementById('coPhone')?.value.trim()||'',email:document.getElementById('coEmail')?.value.trim()||'',address:document.getElementById('coAddress')?.value.trim()||'',landmark:document.getElementById('coLandmark')?.value.trim()||'',houseNumber:document.getElementById('coHouse')?.value.trim()||'',city:document.getElementById('coCity')?.value.trim()||'',state:document.getElementById('coState')?.value.trim()||'',pincode:document.getElementById('coPin')?.value.trim()||''};save()}
 window.openCheckout=()=>{if(!state.cart.length){toast('Your bag is empty');return}location.href='checkout.html'};
-window.applyCheckoutCoupon=()=>{const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0),d=discountAmount(sub,getDiscountCode());const total=sub-d+Number(state.settings.shipping||0);const a=document.getElementById('sumSub'),b=document.getElementById('sumDisc'),c=document.getElementById('sumTotal'),m=document.getElementById('couponMsg');if(a)a.textContent=money(sub);if(b)b.textContent=d?`−${money(d)}`:money(0);if(c)c.textContent=money(total);if(m)m.textContent=d?'Coupon KRYVEN10 applied — 10% off.':'Use KRYVEN10 for 10% off.';}
+window.applyCheckoutCoupon=()=>{
+  const pricing=getCartPricing(getDiscountCode());
+  const m=document.getElementById('couponMsg'),a=document.getElementById('sumSub'),o=document.getElementById('sumOffer'),b=document.getElementById('sumDisc'),c=document.getElementById('sumTotal');
+  if(a)a.textContent=money(pricing.subtotal);if(o)o.textContent='−'+money(pricing.offerDiscount);if(b)b.textContent=pricing.couponDiscount?'−'+money(pricing.couponDiscount):money(0);if(c)c.textContent=money(pricing.total);
+  if(m)m.textContent=getDiscountCode()?`Coupon ${getDiscountCode()} checked. Product offers remain active.`:'Product offers are applied automatically.';
+};
 window.placeOrder=async()=>{
-  if(window.__orderSubmitting)return;
-  window.__orderSubmitting=true;
+  if(window.__orderSubmitting)return;window.__orderSubmitting=true;
   try{
     if(!validateCheckoutForm()){window.scrollTo({top:120,behavior:'smooth'});return}
     if(!await validateCartForOrder()){return}
     syncCheckoutProfile();
     const name=state.profile.name,phone=state.profile.phone,email=state.profile.email,address=state.profile.address,landmark=state.profile.landmark||'',houseNumber=state.profile.houseNumber||'',city=state.profile.city,stateName=state.profile.state,pincode=state.profile.pincode;
-    const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0);
-    const discount=discountAmount(sub,getDiscountCode());
-    const total=sub-discount+Number(state.settings.shipping||0);
-    const payment=document.querySelector('input[name="pay"]:checked')?.value;
-    if(!payment){toast('Select a payment method');return}
-    const source=localStorage.getItem('kryven-era-referral-source')||'';
-    const id='KE-'+new Date().getFullYear()+'-'+cryptoSafeOrderRandom();
+    const pricing=getCartPricing(getDiscountCode());
+    const payment=document.querySelector('input[name="pay"]:checked')?.value;if(!payment){toast('Select a payment method');return}
+    const source=localStorage.getItem('kryven-era-referral-source')||'',id='KE-'+new Date().getFullYear()+'-'+cryptoSafeOrderRandom();
     const codPct=Math.max(0,Math.min(100,Number(state.settings.payments?.codAdvancePercent??20)));
-    const advancePaid=payment==='cod'?Math.round(total*codPct/100):total;
+    const advancePaid=payment==='cod'?Math.round(pricing.total*codPct/100):pricing.total;
     const customerId=getCustomerId();
-    const order={id,createdAt:new Date().toISOString(),customerId,customer:{id:customerId,name,email,phone,address,landmark,houseNumber,city,state:stateName,pincode},items:structuredClone(state.cart).map(x=>({...x,image:product(x.id)?.images?.[0]||'',name:product(x.id)?.name||x.id,unitPrice:Number(product(x.id)?.price||0)})),subtotal:sub,discount,total,payment,status:'Awaiting Payment Verification',referralSource:source,advancePaid,remainingDue:Math.max(0,total-advancePaid),codAdvancePercent:payment==='cod'?codPct:null,paymentVerified:false,catalogCheckedAt:new Date().toISOString()};
-    if(payment==='cod'){
-      const saved=await savePlacedCODOrder(order);
-      if(!saved)return;
-      showPaymentSuccess(order.id,'cod');
-      return;
-    }
-    const saved=await savePendingOrder(order);
-    if(!saved)return;
-    await showPaymentGateway(order,payment);
+    const order={id,createdAt:new Date().toISOString(),customerId,customer:{id:customerId,name,email,phone,address,landmark,houseNumber,city,state:stateName,pincode},
+      items:structuredClone(state.cart).map(x=>{const p=product(x.id),q=Math.max(1,Number(x.qty||1));return {...x,image:p?.images?.[0]||'',name:p?.name||x.id,originalUnitPrice:Number(p?.price||0),unitPrice:Number((getOfferLinePrice(p,q)/q).toFixed(2)),lineTotal:Number(getOfferLinePrice(p,q).toFixed(2)),offer:p?.offer||null}}),
+      subtotal:pricing.subtotal,offerDiscount:pricing.offerDiscount,couponDiscount:pricing.couponDiscount,discount:pricing.discount,total:pricing.total,payment,status:'Awaiting Payment Verification',referralSource:source,advancePaid,remainingDue:Math.max(0,pricing.total-advancePaid),codAdvancePercent:payment==='cod'?codPct:null,paymentVerified:false,catalogCheckedAt:new Date().toISOString()};
+    if(payment==='cod'){const saved=await savePlacedCODOrder(order);if(!saved)return;showPaymentSuccess(order.id,'cod');return}
+    const saved=await savePendingOrder(order);if(!saved)return;await showPaymentGateway(order,payment);
   }finally{window.__orderSubmitting=false}
 };
 function cryptoSafeOrderRandom(){try{const a=new Uint32Array(1);crypto.getRandomValues(a);return String(100+Number(a[0]%900))}catch{return String(100+Math.floor(Math.random()*900))}}

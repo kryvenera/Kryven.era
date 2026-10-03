@@ -67,6 +67,24 @@ const fallback = {
   cart:[],wishlist:[],profile:{},orders:[],searches:{},reviews:[]
 };
 
+const CATEGORY_DEFAULTS = ['T-Shirts','Hoodies','Pants','Jackets','Accessories'];
+const OFFER_DEFAULTS = {
+  grandOpening:{enabled:true,title:'GRAND OPENING',subtitle:'LIMITED-TIME OFFERS ARE LIVE',note:'Shop the launch offers before they end.'},
+  percent50:{enabled:true,label:'50% OFF',subtitle:'FLAT 50% OFF',note:'Apply to selected products from the Products editor.',defaultPercent:50},
+  bogo:{enabled:true,label:'BUY 1 GET 1 FREE',subtitle:'BUY 1 GET 1 FREE',note:'Same product: add 2 to bag and 1 is free.'}
+};
+function ensureMerchandisingSettings(s){
+  s=s||{};
+  s.categories=Array.isArray(s.categories)&&s.categories.length
+    ? s.categories.map(x=>typeof x==='string'?{name:x,enabled:true}:Object.assign({name:'Untitled',enabled:true},x)).filter(x=>x.name)
+    : CATEGORY_DEFAULTS.map(name=>({name,enabled:true}));
+  s.offers=Object.assign({},structuredClone(OFFER_DEFAULTS),s.offers||{});
+  s.offers.grandOpening=Object.assign({},OFFER_DEFAULTS.grandOpening,s.offers.grandOpening||{});
+  s.offers.percent50=Object.assign({},OFFER_DEFAULTS.percent50,s.offers.percent50||{});
+  s.offers.bogo=Object.assign({},OFFER_DEFAULTS.bogo,s.offers.bogo||{});
+  return s;
+}
+
 function supabaseHeaders(extra={}){return Object.assign({'apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':`Bearer ${SUPABASE_PUBLISHABLE_KEY}`,'Content-Type':'application/json'},extra)}
 async function supabaseRequest(url=SUPABASE_REST,options={}){
   const res=await fetch(url,{...options,headers:supabaseHeaders(options.headers||{})});
@@ -85,7 +103,7 @@ function load(){
   }
   return data;
 }
-let state=load(); let active='dashboard'; let selectedOrder=null;
+let state=load(); state.settings=ensureMerchandisingSettings(state.settings); let active='dashboard'; let selectedOrder=null;
 let __cloudSaveTimer=null;
 let __adminPinSession=sessionStorage.getItem('ke-admin-pin')||'KRYVEN26';
 const LIVE_STATE_REST = `${SUPABASE_URL}/rest/v1/kryven_store_state`;
@@ -112,7 +130,7 @@ async function loadCloudAdminState(){
     if(!res.ok)return false;
     const rows=await res.json(); const cloud=rows?.[0]?.state;
     if(cloud&&Array.isArray(cloud.products)){
-      state.settings=Object.assign({},state.settings,cloud.settings||{});
+      state.settings=ensureMerchandisingSettings(Object.assign({},state.settings,cloud.settings||{}));
       state.products=cloud.products;
       state.reviews=Array.isArray(cloud.reviews)?cloud.reviews:state.reviews;
       state.searches=cloud.searches||state.searches;
@@ -241,9 +259,72 @@ window.saveOrderEdit=async i=>{
 }
 window.deleteOrder=async i=>{if(!confirm('Delete this order permanently?'))return;const o=state.orders[i];if(!(await deleteCloudOrder(o)))return;state.orders.splice(i,1);save();active='orders';selectedOrder=null;renderBody()}
 
-function products(){return `<div class="section-head"><div><div class="eyebrow">CATALOG</div><h2>Products.</h2><p class="muted">Add one product normally, or create multiple products together with multiple gallery images.</p></div><div class="admin-actions"><button class="btn" onclick="bulkAddProducts()">+ BULK ADD</button><button class="btn primary" onclick="newProduct()">+ ADD PRODUCT</button></div></div><div style="display:grid;gap:10px">${state.products.map((p,i)=>`<div class="product-admin"><img class="preview-img" src="${esc(p.images?.[0]||'')}"><div><b>${esc(p.name)}</b><div class="muted">${esc(p.category)} · ${money(p.price)} · SKU ${esc(p.barcode||'—')} · ${p.images?.length||0} photos</div></div><div class="admin-actions"><button class="btn" onclick="editProduct(${i})">EDIT</button><button class="btn danger" onclick="deleteProduct(${i})">DELETE</button></div></div>`).join('')}</div>`}
+function productOfferLabel(p){
+  const o=p?.offer||{};
+  if(!o.enabled||o.type==='none')return '';
+  if(o.type==='percent')return `${Math.max(1,Number(o.percent||50))}% OFF`;
+  if(o.type==='bogo')return 'BUY 1 GET 1 FREE';
+  return '';
+}
+function products(){
+  const s=ensureMerchandisingSettings(state.settings);
+  return `<div class="section-head"><div><div class="eyebrow">CATALOG</div><h2>Products.</h2><p class="muted">Add one product normally, or create multiple products together with multiple gallery images.</p></div><div class="admin-actions"><button class="btn" onclick="bulkAddProducts()">+ BULK ADD</button><button class="btn primary" onclick="newProduct()">+ ADD PRODUCT</button></div></div>
+  <div class="form-section premium-panel">
+    <div class="panel-head"><div><div class="eyebrow">OFFER CONTROLS</div><h3>Apply offers quickly</h3></div><span class="chip red-offer-chip">RED OFFERS</span></div>
+    <div class="offer-bulk-grid">
+      <button class="offer-bulk-btn" onclick="applyOfferToCategory('T-Shirts','percent')">Apply ${esc(s.offers.percent50.label)} to all T-Shirts</button>
+      <button class="offer-bulk-btn" onclick="applyOfferToCategory('T-Shirts','bogo')">Apply ${esc(s.offers.bogo.label)} to all T-Shirts</button>
+      <button class="offer-bulk-btn" onclick="removeOfferFromCategory('T-Shirts')">Remove offer from all T-Shirts</button>
+    </div>
+    <p class="admin-note">You can also choose 50% OFF, BUY 1 GET 1 FREE, or None separately inside every product.</p>
+  </div>
+  <div style="display:grid;gap:10px">${state.products.map((p,i)=>`<div class="product-admin ${p.offer?.enabled?'has-red-offer':''}">
+    <img class="preview-img" src="${esc(p.images?.[0]||'')}">
+    <div><b>${esc(p.name)}</b><div class="muted">${esc(p.category)} · ${money(p.price)} · SKU ${esc(p.barcode||'—')} · ${p.images?.length||0} photos</div>
+      ${productOfferLabel(p)?`<div class="admin-offer-tag">${esc(productOfferLabel(p))}</div>`:''}
+    </div>
+    <div class="admin-actions"><button class="btn" onclick="editProduct(${i})">EDIT</button><button class="btn danger" onclick="deleteProduct(${i})">DELETE</button></div>
+  </div>`).join('')}</div>`
+}
 window.deleteProduct=i=>{if(confirm('Delete this product?')){state.products.splice(i,1);save();renderBody()}}
-function productForm(i=null){const p=i===null?{id:'KE'+Date.now().toString().slice(-6),name:'New Kryven Product',category:'T-Shirts',price:999,mrp:1499,discount:'33% OFF',rating:5,reviews:0,barcode:'',images:[IMG.tshirt],sizes:{S:true,M:true,L:true,XL:true,XXL:true},colors:['Black','White'],description:'',features:['Premium quality'],stock:10}:state.products[i];return `<div class="form-section premium-panel"><div class="section-head compact"><div><div class="eyebrow">CATALOG EDITOR</div><h3>${i===null?'Add':'Edit'} product</h3></div></div><div class="form-grid"><div class="field"><label>TITLE</label><input id="pName" value="${esc(p.name)}"></div><div class="field"><label>CATEGORY</label><input id="pCat" value="${esc(p.category)}"></div><div class="field"><label>PRICE</label><input id="pPrice" type="number" value="${p.price}"></div><div class="field"><label>MRP</label><input id="pMrp" type="number" value="${p.mrp}"></div><div class="field"><label>DISCOUNT</label><input id="pDisc" value="${esc(p.discount)}"></div><div class="field"><label>BARCODE / SKU</label><input id="pBarcode" value="${esc(p.barcode||'')}"></div><div class="field"><label>STOCK</label><input id="pStock" type="number" value="${p.stock}"></div><div class="field"><label>COLOURS</label><input id="pColors" value="${esc((p.colors||[]).join(', '))}"></div><div class="field" style="grid-column:1/-1"><label>PRODUCT IMAGES</label><input id="pImageFiles" type="file" accept="image/*" multiple onchange="uploadProductImages(this)"><small id="cloudinaryUploadStatus" class="field-help">Select one or more images. They will upload directly to Cloudinary.</small></div><div class="field" style="grid-column:1/-1"><label>IMAGE URLS (ONE PER LINE)</label><textarea id="pImages">${esc((p.images||[]).join('\n'))}</textarea></div><div class="field" style="grid-column:1/-1"><label>COLOUR IMAGE MAP (Color | URL, ONE PER LINE)</label><textarea id="pVariantImages" placeholder="Black | https://...\nWhite | https://...\nRed | https://...">${esc(Object.entries(p.variantVisuals||{}).filter(([,v])=>v?.src).map(([c,v])=>`${c} | ${v.src}`).join('\n'))}</textarea><small class="field-help">Admin can replace the temporary colour photos with exact product photos later.</small></div><div class="field" style="grid-column:1/-1"><label>DESCRIPTION</label><textarea id="pDesc">${esc(p.description||'')}</textarea></div><div class="field" style="grid-column:1/-1"><label>FEATURES (ONE PER LINE)</label><textarea id="pFeatures">${esc((p.features||[]).join('\n'))}</textarea></div></div><div class="chips">${['S','M','L','XL','XXL'].map(s=>`<label class="chip"><input id="size_${s}" type="checkbox" ${p.sizes?.[s]?'checked':''}> ${s}</label>`).join('')}</div><div class="admin-actions" style="margin-top:15px"><button class="btn primary" onclick="saveProduct(${i===null?'null':i})">SAVE PRODUCT →</button><button class="btn" onclick="go('products')">CANCEL</button></div></div>`}
+function productForm(i=null){
+  const p=i===null
+    ? {id:'KE'+Date.now().toString().slice(-6),name:'New Kryven Product',category:'T-Shirts',price:999,mrp:1499,discount:'33% OFF',rating:5,reviews:0,barcode:'',images:[IMG.tshirt],sizes:{S:true,M:true,L:true,XL:true,XXL:true},colors:['Black','White'],description:'',features:['Premium quality'],stock:10,offer:{enabled:false,type:'none',percent:50}}
+    : state.products[i];
+  const merch=ensureMerchandisingSettings(state.settings);const o=Object.assign({enabled:false,type:'none',percent:merch.offers.percent50.defaultPercent||50},p.offer||{});
+  const cats=ensureMerchandisingSettings(state.settings).categories;
+  return `<div class="form-section premium-panel"><div class="section-head compact"><div><div class="eyebrow">CATALOG EDITOR</div><h3>${i===null?'Add':'Edit'} product</h3></div></div>
+  <div class="form-grid">
+    <div class="field"><label>TITLE</label><input id="pName" value="${esc(p.name)}"></div>
+    <div class="field"><label>CATEGORY</label><input id="pCat" list="productCategories" value="${esc(p.category)}"><datalist id="productCategories">${cats.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist></div>
+    <div class="field"><label>PRICE</label><input id="pPrice" type="number" value="${p.price}"></div>
+    <div class="field"><label>MRP</label><input id="pMrp" type="number" value="${p.mrp}"></div>
+    <div class="field"><label>DISCOUNT</label><input id="pDisc" value="${esc(p.discount)}"></div>
+    <div class="field"><label>BARCODE / SKU</label><input id="pBarcode" value="${esc(p.barcode||'')}"></div>
+    <div class="field"><label>STOCK</label><input id="pStock" type="number" value="${p.stock}"></div>
+    <div class="field"><label>COLOURS</label><input id="pColors" value="${esc((p.colors||[]).join(', '))}"></div>
+    <div class="field" style="grid-column:1/-1"><label>PRODUCT IMAGES</label><input id="pImageFiles" type="file" accept="image/*" multiple onchange="uploadProductImages(this)"><small id="cloudinaryUploadStatus" class="field-help">Select one or more images. They will upload directly to Cloudinary.</small></div>
+    <div class="field" style="grid-column:1/-1"><label>IMAGE URLS (ONE PER LINE)</label><textarea id="pImages">${esc((p.images||[]).join('\n'))}</textarea></div>
+    <div class="field" style="grid-column:1/-1"><label>COLOUR IMAGE MAP (Color | URL, ONE PER LINE)</label><textarea id="pVariantImages" placeholder="Black | https://...\nWhite | https://...\nRed | https://...">${esc(Object.entries(p.variantVisuals||{}).filter(([,v])=>v?.src).map(([c,v])=>`${c} | ${v.src}`).join('\n'))}</textarea><small class="field-help">Admin can replace the temporary colour photos with exact product photos later.</small></div>
+    <div class="field" style="grid-column:1/-1"><label>DESCRIPTION</label><textarea id="pDesc">${esc(p.description||'')}</textarea></div>
+    <div class="field" style="grid-column:1/-1"><label>FEATURES (ONE PER LINE)</label><textarea id="pFeatures">${esc((p.features||[]).join('\n'))}</textarea></div>
+  </div>
+  <div class="form-section offer-editor-panel">
+    <div class="panel-head"><div><div class="eyebrow">PRODUCT OFFER</div><h3>Promotion on this product</h3></div><span class="red-offer-chip">RED</span></div>
+    <div class="form-grid">
+      <div class="field"><label>OFFER</label><select id="pOfferType">
+        <option value="none" ${o.type==='none'?'selected':''}>No offer</option>
+        <option value="percent" ${o.type==='percent'?'selected':''}>50% OFF / percentage offer</option>
+        <option value="bogo" ${o.type==='bogo'?'selected':''}>BUY 1 GET 1 FREE</option>
+      </select></div>
+      <div class="field"><label>PERCENT OFF</label><input id="pOfferPercent" type="number" min="1" max="100" value="${Math.max(1,Number(o.percent||merch.offers.percent50.defaultPercent||50))}"><small class="field-help">Used when Percentage Offer is selected.</small></div>
+      <div class="field" style="display:flex;align-items:center;gap:10px;padding-top:24px"><label class="switch"><input id="pOfferEnabled" type="checkbox" ${o.enabled?'checked':''}><span class="slider"></span></label><b>Offer is active</b></div>
+    </div>
+    <p class="admin-note">Every product can have its own offer. Red offer badges are shown on the customer storefront.</p>
+  </div>
+  <div class="chips">${['S','M','L','XL','XXL'].map(s=>`<label class="chip"><input id="size_${s}" type="checkbox" ${p.sizes?.[s]?'checked':''}> ${s}</label>`).join('')}</div>
+  <div class="admin-actions" style="margin-top:15px"><button class="btn primary" onclick="saveProduct(${i===null?'null':i})">SAVE PRODUCT →</button><button class="btn" onclick="go('products')">CANCEL</button></div></div>
+`}
 window.newProduct=()=>{document.querySelector('.admin-main').innerHTML=productForm();active='products'}
 
 function bulkProductCard(index){return `<div class="form-section premium-panel bulk-product-card" data-bulk-index="${index}" style="margin-bottom:14px"><div class="panel-head"><div><div class="eyebrow">BULK PRODUCT ${index+1}</div><h3>New product</h3></div><button class="btn danger" type="button" onclick="removeBulkProduct(${index})">REMOVE</button></div><div class="form-grid"><div class="field"><label>TITLE</label><input id="bpName_${index}" placeholder="Product title"></div><div class="field"><label>CATEGORY</label><input id="bpCat_${index}" value="T-Shirts" placeholder="T-Shirts"></div><div class="field"><label>PRICE</label><input id="bpPrice_${index}" type="number" value="999"></div><div class="field"><label>MRP</label><input id="bpMrp_${index}" type="number" value="1499"></div><div class="field"><label>DISCOUNT</label><input id="bpDisc_${index}" value="33% OFF"></div><div class="field"><label>BARCODE / SKU</label><input id="bpBarcode_${index}" placeholder="Optional"></div><div class="field"><label>STOCK</label><input id="bpStock_${index}" type="number" value="10"></div><div class="field"><label>COLOURS</label><input id="bpColors_${index}" value="Black, White"></div><div class="field" style="grid-column:1/-1"><label>GALLERY IMAGES — SELECT MULTIPLE</label><input id="bpFiles_${index}" type="file" accept="image/*" multiple><small id="bpStatus_${index}" class="field-help">Select all photos for this product at once. They will upload to Cloudinary when you click CREATE PRODUCTS.</small></div><div class="field" style="grid-column:1/-1"><label>DESCRIPTION</label><textarea id="bpDesc_${index}" placeholder="Product description"></textarea></div><div class="field" style="grid-column:1/-1"><label>FEATURES — ONE PER LINE</label><textarea id="bpFeatures_${index}" placeholder="Premium quality\nOversized fit"></textarea></div></div><div class="chips">${['S','M','L','XL','XXL'].map(sz=>`<label class="chip"><input id="bpSize_${sz}_${index}" type="checkbox" checked> ${sz}</label>`).join('')}</div></div>`}
@@ -252,11 +333,115 @@ window.addBulkProductCard=()=>{const list=document.getElementById('bulkProductLi
 window.removeBulkProduct=(index)=>{const card=document.querySelector(`.bulk-product-card[data-bulk-index="${index}"]`);if(!card)return;const cards=[...document.querySelectorAll('.bulk-product-card')];if(cards.length<=1){toast('Keep at least one product');return}card.remove();document.querySelectorAll('.bulk-product-card').forEach((el,i)=>{el.dataset.bulkIndex=i;const title=el.querySelector('.eyebrow');if(title)title.textContent=`BULK PRODUCT ${i+1}`;});}
 window.saveBulkProducts=async()=>{const cards=[...document.querySelectorAll('.bulk-product-card')];if(!cards.length)return;const global=document.getElementById('bulkGlobalStatus');let created=0;try{for(let i=0;i<cards.length;i++){const card=cards[i], name=document.getElementById(`bpName_${i}`)?.value.trim();if(!name){toast(`Product ${i+1}: title is required`);return}const files=[...(document.getElementById(`bpFiles_${i}`)?.files||[])];const status=document.getElementById(`bpStatus_${i}`);if(status)status.textContent=files.length?`Uploading 0/${files.length}…`:'No gallery images selected — using empty gallery';const urls=[];for(let j=0;j<files.length;j++){if(status)status.textContent=`Uploading ${j+1}/${files.length}…`;urls.push(await uploadToCloudinary(files[j]))}const sizes=Object.fromEntries(['S','M','L','XL','XXL'].map(sz=>[sz,!!document.getElementById(`bpSize_${sz}_${i}`)?.checked]));const p={id:`KE${Date.now().toString().slice(-6)}${String(i).padStart(2,'0')}`,name,category:document.getElementById(`bpCat_${i}`).value.trim()||'T-Shirts',price:Number(document.getElementById(`bpPrice_${i}`).value||0),mrp:Number(document.getElementById(`bpMrp_${i}`).value||0),discount:document.getElementById(`bpDisc_${i}`).value.trim(),barcode:document.getElementById(`bpBarcode_${i}`).value.trim(),stock:Number(document.getElementById(`bpStock_${i}`).value||0),colors:document.getElementById(`bpColors_${i}`).value.split(',').map(x=>x.trim()).filter(Boolean),images:urls,description:document.getElementById(`bpDesc_${i}`).value.trim(),features:document.getElementById(`bpFeatures_${i}`).value.split('\n').map(x=>x.trim()).filter(Boolean),rating:5,reviews:0,sizes};state.products.unshift(p);created++;if(status)status.textContent=`${urls.length} image${urls.length===1?'':'s'} uploaded ✓`;}save();if(global)global.textContent=`${created} product${created===1?'':'s'} created successfully ✓`;toast(`${created} product${created===1?'':'s'} created`);setTimeout(()=>renderBody(),700)}catch(e){if(global)global.textContent=`Upload failed: ${e.message||'error'}`;toast(`Bulk upload failed: ${e.message||'error'}`)}}
 window.editProduct=i=>{document.querySelector('.admin-main').innerHTML=productForm(i);active='products'}
-window.saveProduct=i=>{const p={id:i===null?`KE${Date.now().toString().slice(-6)}`:state.products[i].id,name:document.getElementById('pName').value.trim(),category:document.getElementById('pCat').value.trim(),price:Number(document.getElementById('pPrice').value),mrp:Number(document.getElementById('pMrp').value),discount:document.getElementById('pDisc').value.trim(),barcode:document.getElementById('pBarcode').value.trim(),stock:Number(document.getElementById('pStock').value),colors:document.getElementById('pColors').value.split(',').map(x=>x.trim()).filter(Boolean),images:document.getElementById('pImages').value.split('\n').map(x=>x.trim()).filter(Boolean),description:document.getElementById('pDesc').value.trim(),variantVisuals:Object.fromEntries((document.getElementById('pVariantImages')?.value||'').split('\n').map(line=>line.split('|').map(x=>x.trim())).filter(x=>x.length>=2&&x[0]&&x[1]).map(x=>[x[0],{src:x[1]}])),features:document.getElementById('pFeatures').value.split('\n').map(x=>x.trim()).filter(Boolean),rating:i===null?5:state.products[i].rating,reviews:i===null?0:state.products[i].reviews,sizes:Object.fromEntries(['S','M','L','XL','XXL'].map(s=>[s,document.getElementById(`size_${s}`).checked]))};if(i===null)state.products.unshift(p);else state.products[i]=p;save();renderBody()}
+window.saveProduct=i=>{
+  const offerType=document.getElementById('pOfferType')?.value||'none';
+  const offerEnabled=!!document.getElementById('pOfferEnabled')?.checked && offerType!=='none';
+  const offer={enabled:offerEnabled,type:offerType,percent:Math.max(1,Math.min(100,Number(document.getElementById('pOfferPercent')?.value||50)))};
+  const p={id:i===null?`KE${Date.now().toString().slice(-6)}`:state.products[i].id,
+    name:document.getElementById('pName').value.trim(),category:document.getElementById('pCat').value.trim(),
+    price:Number(document.getElementById('pPrice').value),mrp:Number(document.getElementById('pMrp').value),
+    discount:document.getElementById('pDisc').value.trim(),barcode:document.getElementById('pBarcode').value.trim(),stock:Number(document.getElementById('pStock').value),
+    colors:document.getElementById('pColors').value.split(',').map(x=>x.trim()).filter(Boolean),
+    images:document.getElementById('pImages').value.split('\n').map(x=>x.trim()).filter(Boolean),
+    description:document.getElementById('pDesc').value.trim(),
+    variantVisuals:Object.fromEntries((document.getElementById('pVariantImages')?.value||'').split('\n').map(line=>line.split('|').map(x=>x.trim())).filter(x=>x.length>=2&&x[0]&&x[1]).map(x=>[x[0],{src:x[1]}])),
+    features:document.getElementById('pFeatures').value.split('\n').map(x=>x.trim()).filter(Boolean),
+    rating:i===null?5:state.products[i].rating,reviews:i===null?0:state.products[i].reviews,
+    sizes:Object.fromEntries(['S','M','L','XL','XXL'].map(s=>[s,document.getElementById(`size_${s}`).checked])),
+    offer
+  };
+  if(i===null)state.products.unshift(p);else state.products[i]=p;
+  save();toast('Product saved');renderBody();
+}
 
-function settings(){const s=state.settings;return `<div class="section-head"><div><div class="eyebrow">STOREFRONT / DARK LUXURY</div><h2>Store editor.</h2></div><button class="btn primary" onclick="saveSettings()">SAVE WEBSITE</button></div><div class="form-section premium-panel"><h4>Brand & landing page</h4><div class="form-grid"><div class="field"><label>BRAND</label><input id="sBrand" value="${esc(s.brand)}"></div><div class="field"><label>TAGLINE</label><input id="sTag" value="${esc(s.tagline)}"></div><div class="field"><label>HERO TITLE</label><input id="sHeroTitle" value="${esc(s.heroTitle)}"></div><div class="field"><label>HERO VIDEO URL / FILE</label><input id="sVideo" value="${esc(s.heroVideo||'')}"><small class="field-help">Temporary MP4 is preloaded. Replace this with another MP4 URL or file path.</small></div><div class="field"><label>ADMIN PANEL LOGO URL / FILE</label><input id="sAdminLogo" value="${esc(s.adminLogo||'favicon.png')}"><small class="field-help">Used on the admin login and command-center header.</small></div><div class="field"><label>FULL-SITE BG VIDEO URL</label><input id="sBgVideo" value="${esc(s.backgroundVideo||'')}"></div><div class="field"><label>BG VIDEO</label><select id="sBgEnabled"><option value="0" ${s.backgroundVideoEnabled?'':'selected'}>OFF</option><option value="1" ${s.backgroundVideoEnabled?'selected':''}>ON</option></select></div><div class="field" style="grid-column:1/-1"><label>SEARCH RECOMMENDATIONS</label><input id="sSearchSuggestions" value="${esc((s.searchSuggestions||[]).join(', '))}" placeholder="oversized t-shirt, black hoodie, cargo pants"><small class="field-help">Comma-separated suggestions shown when the customer taps the search bar.</small></div><div class="field" style="grid-column:1/-1"><label>HERO TEXT</label><textarea id="sHeroText">${esc(s.heroText)}</textarea></div></div></div><div class="form-section premium-panel"><h4>Support & contact</h4><div class="form-grid"><div class="field"><label>WHATSAPP</label><input id="sWa" value="${esc(s.whatsapp||'')}"></div><div class="field"><label>UPI ID</label><input id="sUpi" value="${esc(s.upi||'')}"></div><div class="field"><label>CASHFREE QR IMAGE URL</label><input id="sCashfreeQr" value="${esc(s.cashfreeQrImage||'')}" placeholder="Paste your Cashfree QR image URL"><small class="field-help">Optional. When set, this QR is shown at checkout.</small></div><div class="field"><label>PAYMENT VERIFY ENDPOINT</label><input id="sPaymentVerify" value="${esc(s.paymentVerifyEndpoint||'/api/upi/verify')}" placeholder="/api/upi/verify"><small class="field-help">Backend endpoint that returns paid=true only after the gateway confirms payment.</small></div><div class="field"><label>SHIPPING</label><input id="sShip" type="number" value="${Number(s.shipping||0)}"></div><div class="field"><label>SUPPORT HOURS</label><input id="sHours" value="${esc(s.supportText||'')}"></div></div></div><div class="form-section premium-panel"><h4>Admin security</h4><div class="form-grid"><div class="field"><label>ADMIN PIN</label><div style="display:flex;gap:8px"><input id="sPin" type="password" value="${esc(s.adminPin||'')}" style="flex:1"><button class="btn" type="button" onclick="toggleAdminPin('sPin',this)">SHOW</button></div><small class="field-help">PIN reset default: KRYVEN26. You can change it here.</small></div></div></div>`}
+function settings(){
+  const s=ensureMerchandisingSettings(state.settings);
+  return `<div class="section-head"><div><div class="eyebrow">STOREFRONT / DARK LUXURY</div><h2>Store editor.</h2></div><button class="btn primary" onclick="saveSettings()">SAVE WEBSITE</button></div>
+  <div class="form-section premium-panel"><h4>Brand & landing page</h4><div class="form-grid">
+    <div class="field"><label>BRAND</label><input id="sBrand" value="${esc(s.brand)}"></div><div class="field"><label>TAGLINE</label><input id="sTag" value="${esc(s.tagline)}"></div>
+    <div class="field"><label>HERO TITLE</label><input id="sHeroTitle" value="${esc(s.heroTitle)}"></div>
+    <div class="field"><label>HERO VIDEO URL / FILE</label><input id="sVideo" value="${esc(s.heroVideo||'')}"><small class="field-help">Temporary MP4 is preloaded. Replace this with another MP4 URL or file path.</small></div>
+    <div class="field"><label>ADMIN PANEL LOGO URL / FILE</label><input id="sAdminLogo" value="${esc(s.adminLogo||'favicon.png')}"><small class="field-help">Used on the admin login and command-center header.</small></div>
+    <div class="field"><label>FULL-SITE BG VIDEO URL</label><input id="sBgVideo" value="${esc(s.backgroundVideo||'')}"></div>
+    <div class="field"><label>BG VIDEO</label><select id="sBgEnabled"><option value="0" ${s.backgroundVideoEnabled?'':'selected'}>OFF</option><option value="1" ${s.backgroundVideoEnabled?'selected':''}>ON</option></select></div>
+    <div class="field" style="grid-column:1/-1"><label>SEARCH RECOMMENDATIONS</label><input id="sSearchSuggestions" value="${esc((s.searchSuggestions||[]).join(', '))}" placeholder="oversized t-shirt, black hoodie, cargo pants"><small class="field-help">Comma-separated suggestions shown when the customer taps the search bar.</small></div>
+    <div class="field" style="grid-column:1/-1"><label>HERO TEXT</label><textarea id="sHeroText">${esc(s.heroText)}</textarea></div>
+  </div></div>
+  <div class="form-section premium-panel offer-settings-panel"><div class="section-head compact"><div><div class="eyebrow">GRAND OPENING / OFFERS</div><h3>Offer manager</h3><p class="muted">These offer cards are editable from Admin and appear in red on the store.</p></div><span class="red-offer-chip">LIVE OFFERS</span></div>
+    <div class="form-grid">
+      <div class="field"><label>GRAND OPENING</label><select id="oGrandEnabled"><option value="1" ${s.offers.grandOpening.enabled?'selected':''}>ON</option><option value="0" ${s.offers.grandOpening.enabled?'':'selected'}>OFF</option></select></div>
+      <div class="field"><label>GRAND OPENING TITLE</label><input id="oGrandTitle" value="${esc(s.offers.grandOpening.title)}"></div>
+      <div class="field"><label>GRAND OPENING SUBTITLE</label><input id="oGrandSubtitle" value="${esc(s.offers.grandOpening.subtitle)}"></div>
+      <div class="field"><label>GRAND OPENING NOTE</label><input id="oGrandNote" value="${esc(s.offers.grandOpening.note)}"></div>
+
+      <div class="field"><label>50% OFFER</label><select id="o50Enabled"><option value="1" ${s.offers.percent50.enabled?'selected':''}>ON</option><option value="0" ${s.offers.percent50.enabled?'':'selected'}>OFF</option></select></div>
+      <div class="field"><label>50% OFFER LABEL</label><input id="o50Label" value="${esc(s.offers.percent50.label)}"></div>
+      <div class="field"><label>50% OFFER SUBTITLE</label><input id="o50Subtitle" value="${esc(s.offers.percent50.subtitle)}"></div><div class="field"><label>50% VALUE</label><input id="o50Percent" type="number" min="1" max="100" value="${Math.max(1,Math.min(100,Number(s.offers.percent50.defaultPercent||50)))}"></div>
+      <div class="field"><label>50% OFFER NOTE</label><input id="o50Note" value="${esc(s.offers.percent50.note)}"></div>
+
+      <div class="field"><label>BOGO OFFER</label><select id="oBogoEnabled"><option value="1" ${s.offers.bogo.enabled?'selected':''}>ON</option><option value="0" ${s.offers.bogo.enabled?'':'selected'}>OFF</option></select></div>
+      <div class="field"><label>BOGO LABEL</label><input id="oBogoLabel" value="${esc(s.offers.bogo.label)}"></div>
+      <div class="field"><label>BOGO SUBTITLE</label><input id="oBogoSubtitle" value="${esc(s.offers.bogo.subtitle)}"></div>
+      <div class="field"><label>BOGO NOTE</label><input id="oBogoNote" value="${esc(s.offers.bogo.note)}"></div>
+    </div>
+    <div class="admin-actions" style="margin-top:14px"><button class="btn primary" onclick="saveOfferSettings()">SAVE OFFERS →</button></div>
+  </div>
+  <div class="form-section premium-panel"><div class="section-head compact"><div><div class="eyebrow">CATEGORY SECTIONS</div><h3>Add / hide storefront sections</h3><p class="muted">Add any category such as Hoodies, Oversized Tees or New Drops. Hiding a section does not delete products.</p></div></div>
+    <div class="category-manager">
+      <div class="category-add-row"><input id="newCategoryName" placeholder="New section name e.g. Oversized Tees"><button class="btn primary" onclick="addCategory()">+ ADD SECTION</button></div>
+      ${s.categories.map((c,i)=>`<div class="category-admin-row"><div><b>${esc(c.name)}</b><span>${state.products.filter(p=>p.category===c.name).length} product(s)</span></div><div class="admin-actions">
+        <button class="btn ${c.enabled?'':'primary'}" onclick="toggleCategory(${i})">${c.enabled?'HIDE':'SHOW'}</button>
+        <button class="btn danger" onclick="removeCategory(${i})">REMOVE</button>
+      </div></div>`).join('')}
+    </div>
+  </div>
+  <div class="form-section premium-panel"><h4>Support & contact</h4><div class="form-grid">
+    <div class="field"><label>WHATSAPP</label><input id="sWa" value="${esc(s.whatsapp||'')}"></div><div class="field"><label>UPI ID</label><input id="sUpi" value="${esc(s.upi||'')}"></div>
+    <div class="field"><label>CASHFREE QR IMAGE URL</label><input id="sCashfreeQr" value="${esc(s.cashfreeQrImage||'')}" placeholder="Paste your Cashfree QR image URL"><small class="field-help">Optional. When set, this QR is shown at checkout.</small></div>
+    <div class="field"><label>PAYMENT VERIFY ENDPOINT</label><input id="sPaymentVerify" value="${esc(s.paymentVerifyEndpoint||'/api/upi/verify')}" placeholder="/api/upi/verify"><small class="field-help">Backend endpoint that returns paid=true only after the gateway confirms payment.</small></div>
+    <div class="field"><label>SHIPPING</label><input id="sShip" type="number" value="${Number(s.shipping||0)}"></div><div class="field"><label>SUPPORT HOURS</label><input id="sHours" value="${esc(s.supportText||'')}"></div>
+  </div></div>
+  <div class="form-section premium-panel"><h4>Admin security</h4><div class="form-grid"><div class="field"><label>ADMIN PIN</label><div style="display:flex;gap:8px"><input id="sPin" type="password" value="${esc(s.adminPin||'')}" style="flex:1"><button class="btn" type="button" onclick="toggleAdminPin('sPin',this)">SHOW</button></div><small class="field-help">PIN reset default: KRYVEN26. You can change it here.</small></div></div></div>`
+}
 window.toggleAdminPin=(id,btn)=>{const el=document.getElementById(id);if(!el)return;el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'SHOW':'HIDE'}
-window.saveSettings=()=>{const s=state.settings;s.brand=document.getElementById('sBrand').value.trim();s.tagline=document.getElementById('sTag').value.trim();s.heroTitle=document.getElementById('sHeroTitle').value.trim();s.heroVideo=document.getElementById('sVideo').value.trim()||'kryven-era-hero-temp.mp4';s.heroVideoSeeded=true;s.adminLogo=document.getElementById('sAdminLogo').value.trim()||'favicon.png';s.backgroundVideo=document.getElementById('sBgVideo').value.trim()||'kryven-era-hero-temp.mp4';s.backgroundVideoEnabled=true;s.cashfreeQrImage=document.getElementById('sCashfreeQr')?.value.trim()||'';s.paymentVerifyEndpoint=document.getElementById('sPaymentVerify')?.value.trim()||'/api/upi/verify';s.heroText=document.getElementById('sHeroText').value.trim();s.whatsapp=document.getElementById('sWa').value.trim();s.upi=document.getElementById('sUpi').value.trim();s.shipping=Number(document.getElementById('sShip').value||0);s.supportText=document.getElementById('sHours').value.trim();s.searchSuggestions=(document.getElementById('sSearchSuggestions')?.value||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,12);const newPin=document.getElementById('sPin').value.trim();if(!newPin){toast('Admin PIN cannot be empty');return}s.adminPin=newPin;save();renderBody()}
+window.saveSettings=()=>{
+  const s=ensureMerchandisingSettings(state.settings);
+  s.brand=document.getElementById('sBrand').value.trim();s.tagline=document.getElementById('sTag').value.trim();s.heroTitle=document.getElementById('sHeroTitle').value.trim();
+  s.heroVideo=document.getElementById('sVideo').value.trim()||'kryven-era-hero-temp.mp4';s.heroVideoSeeded=true;s.adminLogo=document.getElementById('sAdminLogo').value.trim()||'favicon.png';
+  s.backgroundVideo=document.getElementById('sBgVideo').value.trim()||'kryven-era-hero-temp.mp4';s.backgroundVideoEnabled=true;
+  s.cashfreeQrImage=document.getElementById('sCashfreeQr')?.value.trim()||'';s.paymentVerifyEndpoint=document.getElementById('sPaymentVerify')?.value.trim()||'/api/upi/verify';s.heroText=document.getElementById('sHeroText').value.trim();
+  s.whatsapp=document.getElementById('sWa').value.trim();s.upi=document.getElementById('sUpi').value.trim();s.shipping=Number(document.getElementById('sShip').value||0);s.supportText=document.getElementById('sHours').value.trim();
+  s.searchSuggestions=(document.getElementById('sSearchSuggestions')?.value||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,12);
+  const newPin=document.getElementById('sPin').value.trim();if(!newPin){toast('Admin PIN cannot be empty');return}s.adminPin=newPin;
+  state.settings=s;save();toast('Website settings saved');renderBody();
+};
+window.saveOfferSettings=()=>{
+  const s=ensureMerchandisingSettings(state.settings);
+  s.offers.grandOpening={enabled:document.getElementById('oGrandEnabled').value==='1',title:document.getElementById('oGrandTitle').value.trim()||OFFER_DEFAULTS.grandOpening.title,subtitle:document.getElementById('oGrandSubtitle').value.trim(),note:document.getElementById('oGrandNote').value.trim()};
+  s.offers.percent50={enabled:document.getElementById('o50Enabled').value==='1',label:document.getElementById('o50Label').value.trim()||OFFER_DEFAULTS.percent50.label,subtitle:document.getElementById('o50Subtitle').value.trim(),note:document.getElementById('o50Note').value.trim(),defaultPercent:Math.max(1,Math.min(100,Number(document.getElementById('o50Percent')?.value||50)))};
+  s.offers.bogo={enabled:document.getElementById('oBogoEnabled').value==='1',label:document.getElementById('oBogoLabel').value.trim()||OFFER_DEFAULTS.bogo.label,subtitle:document.getElementById('oBogoSubtitle').value.trim(),note:document.getElementById('oBogoNote').value.trim()};
+  state.settings=s;save();toast('Offers saved — storefront updated');renderBody();
+};
+window.applyOfferToCategory=(category,type)=>{
+  state.products.forEach(p=>{if(String(p.category||'').toLowerCase()===String(category).toLowerCase())p.offer={enabled:true,type,percent:type==='percent'?Math.max(1,Math.min(100,Number(ensureMerchandisingSettings(state.settings).offers.percent50.defaultPercent||50))):0}});
+  save();toast(`${type==='percent'?'50% OFF':'BUY 1 GET 1 FREE'} applied to all ${category}`);renderBody();
+};
+window.removeOfferFromCategory=(category)=>{
+  state.products.forEach(p=>{if(String(p.category||'').toLowerCase()===String(category).toLowerCase())p.offer={enabled:false,type:'none',percent:50}});
+  save();toast(`Offers removed from all ${category}`);renderBody();
+};
+window.addCategory=()=>{
+  const input=document.getElementById('newCategoryName');const name=input?.value.trim();if(!name){toast('Enter a section name');return}
+  const s=ensureMerchandisingSettings(state.settings);if(s.categories.some(c=>c.name.toLowerCase()===name.toLowerCase())){toast('That section already exists');return}
+  s.categories.push({name,enabled:true});state.settings=s;save();toast('Section added');renderBody();
+};
+window.toggleCategory=i=>{const s=ensureMerchandisingSettings(state.settings);if(!s.categories[i])return;s.categories[i].enabled=!s.categories[i].enabled;state.settings=s;save();renderBody()};
+window.removeCategory=i=>{
+  const s=ensureMerchandisingSettings(state.settings);if(!s.categories[i])return;
+  const name=s.categories[i].name;const used=state.products.filter(p=>String(p.category||'').toLowerCase()===String(name).toLowerCase()).length;
+  if(used&& !confirm(`${name} contains ${used} product(s). Remove the storefront section? Products will stay in the catalog.`))return;
+  s.categories.splice(i,1);state.settings=s;save();toast('Section removed');renderBody();
+};
 function payments(){const p=state.settings.payments;const adv=Math.max(0,Math.min(100,Number(p.codAdvancePercent??20)));return `<div class="section-head"><div><div class="eyebrow">CHECKOUT</div><h2>Payments.</h2></div><button class="btn primary" onclick="savePayments()">SAVE PAYMENT SETTINGS</button></div><div class="form-section premium-panel"><h4>Enable / disable methods</h4>${[['cod','Cash on Delivery'],['upi','UPI payment'],['card','Credit / Debit Card'],['bank','Net Banking']].map(([k,t])=>`<div class="toggle-row"><span>${t}</span><label class="switch"><input id="pay_${k}" type="checkbox" ${p[k]?'checked':''}><span class="slider"></span></label></div>`).join('')}<div class="form-grid" style="margin-top:14px"><div class="field"><label>COD ADVANCE % NOW</label><input id="pay_codAdvance" type="number" min="0" max="100" value="${adv}"></div><div class="field"><label>COD REMAINING % AFTER DELIVERY</label><input value="${100-adv}" disabled></div></div><p class="admin-note">Checkout shows the exact COD split configured here. UPI and card remain disabled until you enable them.</p></div>`}
 window.savePayments=()=>{for(const k of ['cod','upi','card','bank'])state.settings.payments[k]=document.getElementById('pay_'+k).checked;state.settings.payments.codAdvancePercent=Math.max(0,Math.min(100,Number(document.getElementById('pay_codAdvance').value||20)));state.settings.payments.paymentSettingsVersion=3;save();renderBody()}
 function customers(){
