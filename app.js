@@ -48,8 +48,8 @@ let state=loadState();
 const CATEGORY_DEFAULTS = ['T-Shirts','Hoodies','Pants','Jackets','Accessories'];
 const OFFER_DEFAULTS = {
   grandOpening:{enabled:true,title:'GRAND OPENING',subtitle:'LIMITED-TIME OFFERS ARE LIVE',note:'Shop the launch offers before they end.'},
-  percent50:{enabled:true,label:'50% OFF',subtitle:'FLAT 50% OFF',note:'Apply to selected products from Admin.',defaultPercent:50},
-  bogo:{enabled:true,label:'BUY 1 GET 1 FREE',subtitle:'BUY 1 GET 1 FREE',note:'Same product: add 2 to bag and 1 is free.'}
+  percent50:{enabled:true,label:'50% OFF',subtitle:'FLAT 50% OFF',note:'Use code GLITCH50 at checkout.',defaultPercent:50,couponCode:'GLITCH50'},
+  bogo:{enabled:true,label:'BUY 1 GET 1 FREE',subtitle:'BUY 1 GET 1 FREE',note:'Use code GLITCHB1G1 at checkout.',couponCode:'GLITCHB1G1'}
 };
 function ensureMerchandisingSettings(s){
   s=s||{};
@@ -260,7 +260,7 @@ function bagPage(){
   return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-line"><img src="${p.images[0]}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3><p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'—')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(sub)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(sub+state.settings.shipping)}</b></div><button class="btn primary" style="width:100%;margin-top:14px" onclick="openCheckout()">PROCEED TO CHECKOUT →</button></aside></div>`;
 }
 
-function renderPage(){const page=document.body.dataset.page||'home'; if(page==='home') return `${header()}${hero()}${categories()}${shop()}${trust()}${footer()}${drawDrawer()}${drawModal()}`;
+function renderPage(){const page=document.body.dataset.page||'home'; if(page==='home') return `${header()}${hero()}${offersBanner()}${categories()}${shop()}${trust()}${footer()}${drawDrawer()}${drawModal()}`;
  if(page==='shop') return pageShell('Shop Collection',shop());
  if(page==='categories') return pageShell('Categories',categories());
  if(page==='product'){const p=product(new URLSearchParams(location.search).get('id')||state.products[0]?.id); return pageShell('Product Details',p?productDetail(p):'<div class="empty-state">Product not found.</div>');}
@@ -849,8 +849,8 @@ window.placeOrder=async()=>{
     const advancePaid=payment==='cod'?Math.round(pricing.total*codPct/100):pricing.total;
     const customerId=getCustomerId();
     const order={id,createdAt:new Date().toISOString(),customerId,customer:{id:customerId,name,email,phone,address,landmark,houseNumber,city,state:stateName,pincode},
-      items:structuredClone(state.cart).map(x=>{const p=product(x.id),q=Math.max(1,Number(x.qty||1));return {...x,image:p?.images?.[0]||'',name:p?.name||x.id,originalUnitPrice:Number(p?.price||0),unitPrice:Number((getOfferLinePrice(p,q)/q).toFixed(2)),lineTotal:Number(getOfferLinePrice(p,q).toFixed(2)),offer:p?.offer||null}}),
-      subtotal:pricing.subtotal,offerDiscount:pricing.offerDiscount,couponDiscount:pricing.couponDiscount,discount:pricing.discount,total:pricing.total,payment,status:'Awaiting Payment Verification',referralSource:source,advancePaid,remainingDue:Math.max(0,pricing.total-advancePaid),codAdvancePercent:payment==='cod'?codPct:null,paymentVerified:false,catalogCheckedAt:new Date().toISOString()};
+      items:structuredClone(state.cart).map(x=>{const p=product(x.id),q=Math.max(1,Number(x.qty||1));return {...x,image:p?.images?.[0]||'',name:p?.name||x.id,originalUnitPrice:Number(p?.price||0),unitPrice:Number((getOfferLinePrice(p,q,getDiscountCode())/q).toFixed(2)),lineTotal:Number(getOfferLinePrice(p,q,getDiscountCode()).toFixed(2)),offer:p?.offer||null}}),
+      subtotal:pricing.subtotal,offerDiscount:pricing.offerDiscount,couponDiscount:pricing.couponDiscount,couponCode:getDiscountCode(),discount:pricing.discount,total:pricing.total,payment,status:'Awaiting Payment Verification',referralSource:source,advancePaid,remainingDue:Math.max(0,pricing.total-advancePaid),codAdvancePercent:payment==='cod'?codPct:null,paymentVerified:false,catalogCheckedAt:new Date().toISOString()};
     if(payment==='cod'){const saved=await savePlacedCODOrder(order);if(!saved)return;showPaymentSuccess(order.id,'cod');return}
     const saved=await savePendingOrder(order);if(!saved)return;await showPaymentGateway(order,payment);
   }finally{window.__orderSubmitting=false}
@@ -872,3 +872,166 @@ function render(){
 
 startLiveCatalog();
 setTimeout(()=>showReferralOnce(),700);
+
+
+/* ===== KRYVEN ERA — GRAND OPENING / COUPON-ONLY HOTFIX ===== */
+(function(){
+  const HOTFIX_DEFAULTS={
+    percent50:{couponCode:'GLITCH50',label:'50% OFF',subtitle:'FLAT 50% OFF',note:'Use code GLITCH50 at checkout.',defaultPercent:50},
+    bogo:{couponCode:'GLITCHB1G1',label:'BUY 1 GET 1 FREE',subtitle:'BUY 1 GET 1 FREE',note:'Use code GLITCHB1G1 at checkout.'}
+  };
+  function merch(){
+    const s=ensureMerchandisingSettings(state.settings);
+    s.offers.percent50=Object.assign({},HOTFIX_DEFAULTS.percent50,s.offers.percent50||{});
+    s.offers.bogo=Object.assign({},HOTFIX_DEFAULTS.bogo,s.offers.bogo||{});
+    return s;
+  }
+  function normCode(v){return String(v||'').trim().toUpperCase();}
+  function configuredOffer(p,type){
+    const o=p?.offer||{};
+    if(!merch().offers[type==='percent'?'percent50':'bogo']?.enabled) return false;
+    // Legacy products without an explicit offer remain eligible for the Grand Opening coupon.
+    // An explicit `type:'none'` is treated as an opt-out and an explicit other offer is exclusive.
+    if(!Object.prototype.hasOwnProperty.call(p||{},'offer')) return true;
+    if(o.type==='none') return false;
+    return !!o.enabled && o.type===type;
+  }
+  function couponType(code){
+    const c=normCode(code),o=merch().offers;
+    if(o.percent50?.enabled && c===normCode(o.percent50.couponCode||'GLITCH50')) return 'percent';
+    if(o.bogo?.enabled && c===normCode(o.bogo.couponCode||'GLITCHB1G1')) return 'bogo';
+    return '';
+  }
+  function couponLinePrice(p,q,code){
+    q=Math.max(1,Number(q||1));
+    const type=couponType(code);
+    if(type==='percent' && configuredOffer(p,'percent')) return Math.round(p.price*q*(1-Math.max(1,Math.min(100,Number(p.offer?.percent||merch().offers.percent50.defaultPercent||50)))/100));
+    if(type==='bogo' && configuredOffer(p,'bogo')) return p.price*(q-Math.floor(q/2));
+    return p.price*q;
+  }
+  function couponDiscountForCart(code){
+    const type=couponType(code); if(!type) return 0;
+    return state.cart.reduce((sum,x)=>{const p=product(x.id);if(!p)return sum;const q=Math.max(1,Number(x.qty||1));return sum+Math.max(0,p.price*q-couponLinePrice(p,q,code));},0);
+  }
+  function firstAvailableSize(p){
+    return Object.entries(p?.sizes||{}).find(([,on])=>on)?.[0]||'';
+  }
+  function seedLegacyOffers(){
+    let changed=false;
+    state.products.forEach(p=>{
+      if(Object.prototype.hasOwnProperty.call(p,'offer')) return;
+      if(String(p.category||'').toLowerCase()==='t-shirts'){p.offer={enabled:true,type:'percent',percent:Number(merch().offers.percent50.defaultPercent||50)};changed=true;}
+      else if(String(p.category||'').toLowerCase()==='hoodies'){p.offer={enabled:true,type:'bogo',percent:0};changed=true;}
+    });
+    if(changed){save();if(document.getElementById('app')?.innerHTML)render();}
+  }
+  seedLegacyOffers();
+  setTimeout(seedLegacyOffers,1600);
+  setInterval(seedLegacyOffers,10000);
+  document.body.classList.add('grand-opening-theme');
+
+  // FIX: Add-to-bag now always succeeds when a product has at least one available size.
+  addToBag=function(id,size,color='Black'){
+    const p=product(id); if(!p){toast('Product is no longer available');return false;}
+    const chosenSize=size||firstAvailableSize(p);
+    if(!chosenSize||!p.sizes?.[chosenSize]){toast('This product is currently out of stock');return false;}
+    const chosenColor=(p.colors?.includes(color)?color:(p.colors?.[0]||'Black'));
+    const line=state.cart.find(x=>x.id===id&&x.size===chosenSize&&x.color===chosenColor);
+    if(line) line.qty=Number(line.qty||0)+1; else state.cart.push({id,size:chosenSize,color:chosenColor,qty:1});
+    save();toast('✓ Added to bag');render();
+    setTimeout(()=>{const b=document.querySelector('.nav-actions .bag-btn,.nav-actions .icon-btn[title="Bag"]');if(b){b.classList.remove('bag-pop');void b.offsetWidth;b.classList.add('bag-pop');}},80);
+    return true;
+  };
+
+  // Product cards use a one-tap Add to Bag with the first available size instead of blocking the customer on a modal.
+  productCard=function(p){
+    const wished=state.wishlist.includes(p.id);
+    const configured=configuredOffer(p,'percent')||configuredOffer(p,'bogo');
+    const badge=configured?offerBadge(p):'';
+    return `<article class="card premium-card ${configured?'offer-product-red':''}" onclick="openProduct('${esc(p.id)}')">
+      <div class="card-media"><img src="${esc(p.images?.[0]||IMG.tshirt)}" onerror="imgFallback()" alt="${esc(p.name)}">${badge}<span class="pill">${esc(p.discount||'LIMITED')}</span>
+      <button class="like ${wished?'active':''}" onclick="event.stopPropagation();toggleWishlist('${esc(p.id)}')">${wished?'♥':'♡'}</button>
+      <button class="card-add" onclick="event.stopPropagation();addToBag('${esc(p.id)}')">ADD TO BAG</button></div>
+      <div class="card-body"><div class="eyebrow">${esc(p.category)} / ${esc(p.id)}</div><h3>${esc(p.name)}</h3><div class="meta">★ ${p.rating} · ${p.reviews} reviews</div>
+      <div class="price-row"><div class="price">${money(p.price)}</div><div class="mrp">${money(p.mrp)}</div><div class="discount">${esc(p.discount||'')}</div></div>
+      ${configuredOffer(p,'bogo')?`<div class="offer-note-red">Use ${esc(merch().offers.bogo.couponCode)} at checkout · buy 2, pay for 1</div>`:''}
+      ${configuredOffer(p,'percent')?`<div class="offer-note-red">Use ${esc(merch().offers.percent50.couponCode)} at checkout · ${getOfferPercent(p)}% off</div>`:''}
+      <div class="size-row">${Object.entries(p.sizes||{}).map(([sz,on])=>`<span class="size ${on?'':'off'}">${esc(sz)}</span>`).join('')}</div></div></article>`;
+  };
+
+  // Coupon-only pricing: no offer is deducted until one of the two coupon codes is entered at checkout.
+  getCartPricing=function(coupon=''){
+    let subtotal=0; state.cart.forEach(x=>{const p=product(x.id);if(p)subtotal+=p.price*Math.max(1,Number(x.qty||1));});
+    const normalized=normCode(coupon), couponDiscount=couponDiscountForCart(normalized), shipping=Number(state.settings.shipping||0);
+    return {subtotal,offerDiscount:0,couponDiscount,discount:couponDiscount,shipping,total:Math.max(0,subtotal-couponDiscount+shipping)};
+  };
+  getOfferLinePrice=function(p,qty=1,code=''){return couponLinePrice(p,qty,code)};
+  getOfferDiscount=function(p,qty=1){return 0};
+
+  function couponMessage(code){
+    const c=normCode(code),type=couponType(c),o=merch().offers;
+    if(!c) return 'Enter GLITCHB1G1 or GLITCH50 to unlock the launch offer.';
+    if(!type) return `Invalid or inactive code. Try ${o.bogo.couponCode} or ${o.percent50.couponCode}.`;
+    const eligible=state.cart.filter(x=>{const p=product(x.id);return type==='percent'?configuredOffer(p,'percent'):configuredOffer(p,'bogo');}).length;
+    if(!eligible) return 'This code is active, but no eligible products are in your bag. Choose products marked with this offer in the store.';
+    return type==='bogo'?`✓ ${c} applied — Buy 1 Get 1 Free.`:`✓ ${c} applied — ${o.percent50.defaultPercent}% OFF.`;
+  }
+
+  window.applyCheckoutCoupon=()=>{
+    const code=normCode(getDiscountCode()), pricing=getCartPricing(code);
+    const m=document.getElementById('couponMsg'),a=document.getElementById('sumSub'),o=document.getElementById('sumOffer'),b=document.getElementById('sumDisc'),c=document.getElementById('sumTotal');
+    if(a)a.textContent=money(pricing.subtotal); if(o)o.textContent='−'+money(0); if(b)b.textContent=pricing.couponDiscount?'−'+money(pricing.couponDiscount):money(0); if(c)c.textContent=money(pricing.total);
+    if(m){m.textContent=couponMessage(code);m.classList.toggle('checkout-help-success',!!couponType(code)&&pricing.couponDiscount>0);}
+    const banner=document.getElementById('checkoutCouponBanner'); if(banner) banner.textContent=couponMessage(code);
+  };
+
+  // Ensure the first Add to Bag from the product page never fails just because a size wasn't tapped first.
+  window.confirmPageAdd=(id)=>{const sel=window.__pageSelected||{};const p=product(id);if(!p){toast('Product is no longer available');return}const size=sel.size||firstAvailableSize(p),color=sel.color||p.colors?.[0]||'Black';if(!size){toast('This product is currently out of stock');return}if(window.__pageSelected)window.__pageSelected.size=size;addToBag(id,size,color);};
+  window.addQuickSelection=(id)=>{const p=product(id);const size=window.__quickSize||firstAvailableSize(p);if(!size){toast('This product is currently out of stock');return}addToBag(id,size,window.__quickColor||p?.colors?.[0]||'Black');closeModal();};
+  window.quickAddToBag=(id)=>addToBag(id);
+
+  // Checkout markup: codes are prominent, but the discount remains locked until a code is applied.
+  const previousCheckoutMarkup=checkoutMarkup;
+  checkoutMarkup=function(){
+    const base=previousCheckoutMarkup();
+    if(!base || base.includes('Your bag is empty')) return base;
+    return base.replace('placeholder="Enter KRYVEN10"','placeholder="GLITCHB1G1 or GLITCH50"')
+      .replace('Product offers are applied automatically.','Enter a code at checkout to unlock the Grand Opening offer.')
+      .replace('<h3>Offer code</h3>','<h3>Grand Opening coupon</h3>')
+      .replace('<small>Optional</small>','<small>Use one code</small>');
+  };
+
+  // Reviews: open for everyone; mark whether a review came from a delivered order instead of blocking non-buyers.
+  openReviewForm=function(pid){
+    const verified=state.orders.some(o=>o.status==='Delivered'&&o.items?.some(i=>i.id===pid));
+    openModal(`<div class="modal-top"><div><div class="eyebrow">Customer review</div><h3 style="margin:0;font-family:'Playfair Display',Georgia,serif">Review this product</h3></div><button class="drawer-close" onclick="closeModal()">×</button></div><div style="padding:20px"><p class="muted" style="margin-top:0">You can review whether you purchased this item or not. Published reviews are labelled as verified purchases only when a delivered order matches this product.</p><div class="form-grid"><div class="field"><label>Your name</label><input id="rvName" value="${esc(state.profile.name)}"></div><div class="field"><label>Rating</label><select id="rvRating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div><div class="field" style="grid-column:1/-1"><label>Review</label><textarea id="rvText" placeholder="Tell us about fit, quality and feel..."></textarea></div><div class="field" style="grid-column:1/-1"><label>Customer photos</label><input id="rvFiles" type="file" accept="image/*" multiple></div></div><button class="btn primary" style="margin-top:15px" onclick="submitReview('${pid}',${verified})">Post review</button></div>`);
+  };
+  window.openReviewForm=openReviewForm;
+  window.submitReview=async(pid,verified=false)=>{const files=[...(document.getElementById('rvFiles')?.files||[])],photos=[];for(const f of files.slice(0,4))photos.push(await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f)}));const text=(document.getElementById('rvText')?.value||'').trim();if(!text){toast('Write your review first');return}state.reviews.unshift({productId:pid,name:document.getElementById('rvName')?.value?.trim()||'Kryven Customer',rating:Number(document.getElementById('rvRating')?.value||5),text,photos,verifiedPurchase:!!verified,createdAt:new Date().toISOString()});save();closeModal();toast('Review submitted');setTimeout(()=>openProduct(pid),100)};
+
+  // Review labels: purchased customers are verified; everyone else is shown transparently.
+  reviewHTML=function(r){return `<div class="review"><div class="review-head"><div><b>${esc(r.name||'Kryven Customer')}</b><div class="muted">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div></div><span class="muted">${r.verifiedPurchase?'Verified purchase':'Customer review'}</span></div><p style="color:#ccc;font-size:12px;line-height:1.7">${esc(r.text)}</p>${r.photos?.length?`<div class="review-photo">${r.photos.map(x=>`<img src="${x}"/>`).join('')}</div>`:''}</div>`};
+
+  // Redesign the Grand Opening strip with both codes visible.
+  offersBanner=function(){const o=merch().offers;if(!o?.grandOpening?.enabled)return '';return `<section class="grand-opening-offers grand-opening-premium"><div class="container"><div class="offer-opening-head"><div><div class="offer-kicker-red">KRYVEN ERA / GRAND OPENING</div><h2>${esc(o.grandOpening.title)}</h2><p>${esc(o.grandOpening.subtitle)}</p></div><span class="offer-live-pill">LIVE</span></div><div class="offer-cards-red">${o.percent50?.enabled?`<article class="offer-card-red"><span>50% OFF</span><b>${esc(o.percent50.subtitle||'FLAT 50% OFF')}</b><small>Coupon code</small><strong class="offer-code-red">${esc(o.percent50.couponCode||'GLITCH50')}</strong></article>`:''}${o.bogo?.enabled?`<article class="offer-card-red"><span>BUY 1 GET 1 FREE</span><b>${esc(o.bogo.subtitle||'BUY 1 GET 1 FREE')}</b><small>Coupon code</small><strong class="offer-code-red">${esc(o.bogo.couponCode||'GLITCHB1G1')}</strong></article>`:''}</div>${o.grandOpening.note?`<div class="offer-opening-note">${esc(o.grandOpening.note)} · Apply one code at checkout.</div>`:''}</div></section>`};
+
+  // Premium entry animation on each new browser session.
+  const legacyReferral=showReferralOnce;
+  showReferralOnce=function(){
+    if(sessionStorage.getItem('ke-grand-opening-seen')==='1'){legacyReferral();return;}
+    openGrandOpeningEntry();
+  };
+  function openGrandOpeningEntry(){
+    if(document.getElementById('grandOpeningEntry'))return;
+    const o=merch().offers;
+    const pct=o.percent50, bogo=o.bogo;
+    const el=document.createElement('div');el.id='grandOpeningEntry';el.className='grand-entry-overlay';
+    el.innerHTML=`<div class="grand-entry-card"><div class="grand-entry-kicker">KRYVEN ERA / GRAND OPENING</div><h2>GRAND<br><span>OPENING</span></h2><div class="grand-entry-offer"><div class="grand-entry-label">BUY 1 GET 1 FREE</div><div class="grand-entry-code">${esc(bogo.couponCode||'GLITCHB1G1')}</div></div><div class="grand-entry-divider"></div><div class="grand-entry-offer"><div class="grand-entry-label">FLAT ${esc(pct.defaultPercent||50)}% OFF</div><div class="grand-entry-code">${esc(pct.couponCode||'GLITCH50')}</div></div><p>Use one coupon code at checkout.</p><button class="btn primary grand-entry-button" onclick="closeGrandOpeningEntry()">ENTER THE ERA →</button></div>`;
+    document.body.appendChild(el);document.body.classList.add('grand-opening-active');
+    setTimeout(()=>el.classList.add('show'),20);setTimeout(()=>{if(el.isConnected)closeGrandOpeningEntry()},9000);
+  }
+  window.closeGrandOpeningEntry=()=>{const el=document.getElementById('grandOpeningEntry');sessionStorage.setItem('ke-grand-opening-seen','1');if(!el){legacyReferral();return}el.classList.remove('show');setTimeout(()=>{el.remove();document.body.classList.remove('grand-opening-active');legacyReferral()},450)};
+  window.openGrandOpeningEntry=openGrandOpeningEntry;
+  merch();
+  setTimeout(()=>{if(document.body.dataset.page==='home'||location.pathname.endsWith('/')||location.pathname.endsWith('/index.html'))showReferralOnce();},350);
+})();

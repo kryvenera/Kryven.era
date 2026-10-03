@@ -63,3 +63,28 @@ body:before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 }
 
 .ke-standalone-brand{display:flex;align-items:center;gap:14px;margin-bottom:24px}.ke-standalone-brand img{width:52px;height:52px;border-radius:50%;object-fit:cover;background:#fff;box-shadow:0 10px 30px rgba(23,25,24,.13)}.ke-standalone-brand strong{font:700 28px/1 "Playfair Display",Georgia,serif;display:block;margin-top:4px}
+
+
+/* ===== GRAND OPENING ENTRY — PREMIUM, CLEAR, NON-SCAMMY ===== */
+.grand-entry-overlay{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at 50% 20%,rgba(215,25,32,.16),transparent 38%),rgba(8,9,10,.84);backdrop-filter:blur(12px);opacity:0;transition:opacity .45s ease}
+.grand-entry-overlay.show{opacity:1}
+.grand-entry-card{width:min(760px,94vw);padding:42px 34px 34px;border:1px solid rgba(255,255,255,.15);border-radius:28px;background:linear-gradient(145deg,#17191b 0%,#090a0b 70%,#21090b 100%);box-shadow:0 40px 120px rgba(0,0,0,.55);text-align:center;color:#fff;transform:translateY(24px) scale(.97);opacity:0;transition:transform .65s cubic-bezier(.2,.8,.2,1),opacity .65s ease}
+.grand-entry-overlay.show .grand-entry-card{transform:none;opacity:1}
+.grand-entry-kicker{font-size:10px;letter-spacing:.28em;font-weight:900;color:#ff5a60;margin-bottom:14px}
+.grand-entry-card h2{margin:0;font-family:'Playfair Display',Georgia,serif;font-size:clamp(54px,10vw,104px);line-height:.82;letter-spacing:-.04em;text-transform:uppercase}
+.grand-entry-card h2 span{color:#d71920}
+.grand-entry-offer{margin:26px auto 0;max-width:520px;padding:18px 20px;border:1px solid rgba(215,25,32,.45);border-radius:18px;background:linear-gradient(180deg,rgba(215,25,32,.14),rgba(255,255,255,.02));box-shadow:0 18px 50px rgba(215,25,32,.10)}
+.grand-entry-label{font-size:clamp(19px,4vw,34px);font-weight:950;letter-spacing:.05em;color:#fff}
+.grand-entry-code{margin-top:10px;font-size:clamp(24px,5vw,44px);font-weight:950;letter-spacing:.12em;color:#ff4a51}
+.grand-entry-divider{width:80px;height:1px;background:rgba(255,255,255,.18);margin:20px auto 0}
+.grand-entry-card p{margin:22px 0 18px;color:#b7bcc0;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.grand-entry-button{min-width:220px}
+.grand-opening-active{overflow:hidden}
+.offer-code-red{display:block;margin-top:8px;color:var(--offer-red)!important;font-size:18px;letter-spacing:.11em;font-weight:950}
+.checkout-help-success{color:#14813c!important;font-weight:800}
+@media(max-width:620px){.grand-entry-card{padding:34px 18px 24px;border-radius:22px}.grand-entry-offer{margin-top:20px}.grand-entry-card h2{font-size:58px}.grand-entry-code{letter-spacing:.08em}.grand-entry-button{width:100%}}
+
+.grand-opening-theme{background:linear-gradient(180deg,#fbf8f6 0%,#f6f2ef 48%,#efe9e6 100%)!important;}
+.grand-opening-theme .header:not(.hero-header){box-shadow:0 8px 30px rgba(20,20,20,.08);}
+.grand-opening-theme .grand-opening-offers{position:relative;overflow:hidden;}
+.grand-opening-theme .grand-opening-offers:before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 18% 20%,rgba(215,25,32,.07),transparent 34%),radial-gradient(circle at 82% 70%,rgba(215,25,32,.05),transparent 28%);}

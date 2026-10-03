@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /checkout.html
+Disallow: /account.html
+Disallow: /customer-details.html
+Disallow: /bag.html
+Disallow: /wishlist.html
