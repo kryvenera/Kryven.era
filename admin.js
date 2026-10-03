@@ -70,8 +70,8 @@ const fallback = {
 const CATEGORY_DEFAULTS = ['T-Shirts','Hoodies','Pants','Jackets','Accessories'];
 const OFFER_DEFAULTS = {
   grandOpening:{enabled:true,title:'GRAND OPENING',subtitle:'LIMITED-TIME OFFERS ARE LIVE',note:'Shop the launch offers before they end.'},
-  percent50:{enabled:true,label:'50% OFF',subtitle:'FLAT 50% OFF',note:'Use code GLITCH50 at checkout.',defaultPercent:50,couponCode:'GLITCH50'},
-  bogo:{enabled:true,label:'BUY 1 GET 1 FREE',subtitle:'BUY 1 GET 1 FREE',note:'Use code GLITCHB1G1 at checkout.',couponCode:'GLITCHB1G1'}
+  percent50:{enabled:true,label:'50% OFF',subtitle:'FLAT 50% OFF',note:'Apply to selected products from the Products editor.',defaultPercent:50},
+  bogo:{enabled:true,label:'BUY 1 GET 1 FREE',subtitle:'BUY 1 GET 1 FREE',note:'Same product: add 2 to bag and 1 is free.'}
 };
 function ensureMerchandisingSettings(s){
   s=s||{};
@@ -377,13 +377,11 @@ function settings(){
       <div class="field"><label>50% OFFER</label><select id="o50Enabled"><option value="1" ${s.offers.percent50.enabled?'selected':''}>ON</option><option value="0" ${s.offers.percent50.enabled?'':'selected'}>OFF</option></select></div>
       <div class="field"><label>50% OFFER LABEL</label><input id="o50Label" value="${esc(s.offers.percent50.label)}"></div>
       <div class="field"><label>50% OFFER SUBTITLE</label><input id="o50Subtitle" value="${esc(s.offers.percent50.subtitle)}"></div><div class="field"><label>50% VALUE</label><input id="o50Percent" type="number" min="1" max="100" value="${Math.max(1,Math.min(100,Number(s.offers.percent50.defaultPercent||50)))}"></div>
-      <div class="field"><label>50% COUPON CODE</label><input id="o50Code" value="${esc(s.offers.percent50.couponCode||'GLITCH50')}"></div>
       <div class="field"><label>50% OFFER NOTE</label><input id="o50Note" value="${esc(s.offers.percent50.note)}"></div>
 
       <div class="field"><label>BOGO OFFER</label><select id="oBogoEnabled"><option value="1" ${s.offers.bogo.enabled?'selected':''}>ON</option><option value="0" ${s.offers.bogo.enabled?'':'selected'}>OFF</option></select></div>
       <div class="field"><label>BOGO LABEL</label><input id="oBogoLabel" value="${esc(s.offers.bogo.label)}"></div>
       <div class="field"><label>BOGO SUBTITLE</label><input id="oBogoSubtitle" value="${esc(s.offers.bogo.subtitle)}"></div>
-      <div class="field"><label>BOGO COUPON CODE</label><input id="oBogoCode" value="${esc(s.offers.bogo.couponCode||'GLITCHB1G1')}"></div>
       <div class="field"><label>BOGO NOTE</label><input id="oBogoNote" value="${esc(s.offers.bogo.note)}"></div>
     </div>
     <div class="admin-actions" style="margin-top:14px"><button class="btn primary" onclick="saveOfferSettings()">SAVE OFFERS →</button></div>
@@ -420,8 +418,8 @@ window.saveSettings=()=>{
 window.saveOfferSettings=()=>{
   const s=ensureMerchandisingSettings(state.settings);
   s.offers.grandOpening={enabled:document.getElementById('oGrandEnabled').value==='1',title:document.getElementById('oGrandTitle').value.trim()||OFFER_DEFAULTS.grandOpening.title,subtitle:document.getElementById('oGrandSubtitle').value.trim(),note:document.getElementById('oGrandNote').value.trim()};
-  s.offers.percent50={enabled:document.getElementById('o50Enabled').value==='1',label:document.getElementById('o50Label').value.trim()||OFFER_DEFAULTS.percent50.label,subtitle:document.getElementById('o50Subtitle').value.trim(),note:document.getElementById('o50Note').value.trim()||`Use code ${document.getElementById('o50Code')?.value.trim()||'GLITCH50'} at checkout.`,defaultPercent:Math.max(1,Math.min(100,Number(document.getElementById('o50Percent')?.value||50))),couponCode:document.getElementById('o50Code')?.value.trim().toUpperCase()||'GLITCH50'};
-  s.offers.bogo={enabled:document.getElementById('oBogoEnabled').value==='1',label:document.getElementById('oBogoLabel').value.trim()||OFFER_DEFAULTS.bogo.label,subtitle:document.getElementById('oBogoSubtitle').value.trim(),note:document.getElementById('oBogoNote').value.trim()||`Use code ${document.getElementById('oBogoCode')?.value.trim()||'GLITCHB1G1'} at checkout.`,couponCode:document.getElementById('oBogoCode')?.value.trim().toUpperCase()||'GLITCHB1G1'};
+  s.offers.percent50={enabled:document.getElementById('o50Enabled').value==='1',label:document.getElementById('o50Label').value.trim()||OFFER_DEFAULTS.percent50.label,subtitle:document.getElementById('o50Subtitle').value.trim(),note:document.getElementById('o50Note').value.trim(),defaultPercent:Math.max(1,Math.min(100,Number(document.getElementById('o50Percent')?.value||50)))};
+  s.offers.bogo={enabled:document.getElementById('oBogoEnabled').value==='1',label:document.getElementById('oBogoLabel').value.trim()||OFFER_DEFAULTS.bogo.label,subtitle:document.getElementById('oBogoSubtitle').value.trim(),note:document.getElementById('oBogoNote').value.trim()};
   state.settings=s;save();toast('Offers saved — storefront updated');renderBody();
 };
 window.applyOfferToCategory=(category,type)=>{
