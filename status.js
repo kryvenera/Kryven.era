@@ -3,8 +3,8 @@ export default async function handler(req,res){
   try{
     const orderId=String(req.query?.orderId||'');
     if(!orderId) return res.status(400).json({error:'orderId required'});
-    const clientId=process.env.CASHFREE_CLIENT_ID;
-    const clientSecret=process.env.CASHFREE_CLIENT_SECRET;
+    const clientId=process.env.CASHFREE_CLIENT_ID||process.env.cashfree_client_id||process.env['cashfree-client-id'];
+    const clientSecret=process.env.CASHFREE_CLIENT_SECRET||process.env.cashfree_client_secret||process.env['cashfree-client-secret'];
     if(!clientId||!clientSecret) return res.status(500).json({error:'Cashfree environment variables are missing'});
     const env=String(process.env.CASHFREE_ENV||'production').toLowerCase()==='sandbox'?'sandbox':'production';
     const baseUrl=env==='sandbox'?'https://sandbox.cashfree.com':'https://api.cashfree.com';
