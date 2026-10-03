@@ -262,7 +262,7 @@ function productDetail(p){
         <div class="opt-row product-page-colours" id="pageColorOptions">${(p.colors||[]).map((c)=>`<button class="opt ${c===color?'selected':''}" type="button" onclick="selectProductPageColor('${esc(c)}')">${esc(c)}</button>`).join('')}</div>
         <div class="detail-label">Size · availability</div>
         <div class="opt-row" id="pageSizeOptions">${Object.entries(p.sizes||{}).map(([sz,on])=>`<button class="opt ${on?(sz===selected?'selected':''):'disabled'}" type="button" ${on?`onclick="selectProductPageSize('${esc(sz)}')"`:'disabled'}>${esc(sz)}${on?'':' · Out'}</button>`).join('')}</div>
-        <div class="product-actions"><button class="btn primary" type="button" onclick="confirmPageAdd('${esc(p.id)}')">Add to Bag</button><button class="btn" type="button" onclick="buyNowFromPage('${esc(p.id)}')">Buy Now</button></div>
+        <div class="product-actions"><button class="btn primary" type="button" onclick="confirmPageAdd('${esc(p.id)}')">Add to Bag</button><button class="btn buy-now-btn" type="button" disabled onclick="buyNowFromPage('${esc(p.id)}')">BUY NOW →</button></div>
       </div>
     </div>
     <section class="product-section"><div class="eyebrow">Description</div><h2>THE DETAILS.</h2><p class="long-copy">${esc(p.description)}</p><div class="features">${(p.features||[]).map(f=>`<div class="feature">✓ ${esc(f)}</div>`).join('')}</div></section>
@@ -345,7 +345,7 @@ function render(){
       const keepSize=prev.id===p.id && prev.size && p.sizes?.[prev.size] ? prev.size : '';
       const keepColor=prev.id===p.id && prev.color && p.colors?.includes(prev.color) ? prev.color : (p.colors?.[0]||'Black');
       window.__pageSelected={id:p.id,size:keepSize,color:keepColor};
-      setTimeout(()=>{bindProductPageSwipe(p.id);init3D(`page-three-${p.id}`,p)},80);
+      setTimeout(()=>{bindProductPageSwipe(p.id);init3D(`page-three-${p.id}`,p);updateBuyNowButton()},80);
     }
   }
   setTimeout(bindMobileSearchAutoHide,40);
@@ -383,12 +383,20 @@ function bindProductPageSwipe(productId){
 window.productPageSwipeNext=id=>{const stage=document.querySelector(`.product-page-swipe-stage[data-product="${CSS.escape(id)}"]`);if(!stage)return;setProductPageGalleryImage(id,Number(stage.dataset.index||0)+1)};
 window.productPageSwipePrev=id=>{const stage=document.querySelector(`.product-page-swipe-stage[data-product="${CSS.escape(id)}"]`);if(!stage)return;setProductPageGalleryImage(id,Number(stage.dataset.index||0)-1)};
 window.setMainImage=(i,id)=>setProductPageGalleryImage(id,i);
-window.selectProductPageSize=(s)=>{if(window.__pageSelected)window.__pageSelected.size=s;document.querySelectorAll('#pageSizeOptions .opt').forEach(b=>b.classList.toggle('selected',b.textContent.trim()===s));};
+function updateBuyNowButton(){
+  const btn=document.querySelector('.buy-now-btn');
+  const p=product(window.__pageSelected?.id||new URLSearchParams(location.search).get('id'));
+  const size=window.__pageSelected?.size||'';
+  const ready=!!(p&&size&&p.sizes?.[size]);
+  if(btn){btn.disabled=!ready;btn.classList.toggle('buy-now-ready',ready);btn.classList.toggle('buy-now-disabled',!ready);btn.setAttribute('aria-disabled',ready?'false':'true');btn.title=ready?'Buy now':'Select an available size first';}
+}
+window.updateBuyNowButton=updateBuyNowButton;
+window.selectProductPageSize=(s)=>{if(window.__pageSelected)window.__pageSelected.size=s;document.querySelectorAll('#pageSizeOptions .opt').forEach(b=>b.classList.toggle('selected',b.textContent.trim().split(' · ')[0]===s));updateBuyNowButton();};
 window.selectProductPageColor=(c)=>{if(window.__pageSelected)window.__pageSelected.color=c;const p=product(window.__pageSelected?.id||new URLSearchParams(location.search).get('id'));const img=document.getElementById('productPageMain');if(p&&img){const v=p.variantVisuals&&p.variantVisuals[c];if(v?.src)img.src=v.src;else if(p.images?.[0])img.src=p.images[0];img.style.filter=v?.filter||({Black:'brightness(.30) contrast(1.15)',White:'brightness(1.08) contrast(.92)',Red:'hue-rotate(310deg) saturate(2.1) brightness(.86)',Silver:'grayscale(.75) brightness(1.24)'}[c]||'none');}document.querySelectorAll('#pageColorOptions .opt').forEach(b=>b.classList.toggle('selected',b.textContent.trim()===c));};
 window.selectProductSize=window.selectProductPageSize;
 window.selectProductColor=window.selectProductPageColor;
 window.confirmPageAdd=(id)=>{const sel=window.__pageSelected||{};const p=product(id);const size=sel.size||'';const color=sel.color||p?.colors?.[0]||'Black';if(!p||!size||!p.sizes?.[size]){toast('Please select your size before adding to bag');document.getElementById('pageSizeOptions')?.scrollIntoView({behavior:'smooth',block:'center'});return false}return addToBag(id,size,color);};
-window.buyNowFromPage=(id)=>{const added=window.confirmPageAdd(id);if(added){setTimeout(()=>window.openCheckout(),120)}return added};
+window.buyNowFromPage=(id)=>{const p=product(id),sel=window.__pageSelected||{};if(!p||!sel.size||!p.sizes?.[sel.size]){toast('Please select your size first');document.getElementById('pageSizeOptions')?.scrollIntoView({behavior:'smooth',block:'center'});updateBuyNowButton();return false;}const added=window.confirmPageAdd(id);if(added){window.location.assign(new URL('checkout.html',window.location.href).href);return false;}return false;};
 
 window.quickAddToBag=(id)=>{
   const p=product(id); if(!p)return;
@@ -649,10 +657,10 @@ async function savePlacedCODOrder(order){
   order.status='Placed';
   order.paymentVerified=false;
   order.placedAt=new Date().toISOString();
-  // Place the order locally first so a Supabase/RLS/network problem cannot block checkout.
+  // Local confirmation is the source of truth for the customer. Never wait for Supabase.
   applyLocalOrder(order);
-  const cloudOk=await saveOrderToSupabase(order,{silent:true,queueOnFail:true});
-  if(!cloudOk) toast('Order placed successfully. We will sync it automatically.');
+  // Cloud sync happens in the background and is queued automatically if it fails.
+  Promise.resolve().then(()=>saveOrderToSupabase(order,{silent:true,queueOnFail:true})).catch(()=>{});
   return true;
 }
 async function updateCloudOrder(order){
@@ -819,7 +827,7 @@ function productDetail(p){
         <div class="opt-row product-page-colours" id="pageColorOptions">${(p.colors||[]).map((c)=>`<button class="opt ${c===color?'selected':''}" type="button" onclick="selectProductPageColor('${esc(c)}')">${esc(c)}</button>`).join('')}</div>
         <div class="detail-label">SIZE / AVAILABILITY</div>
         <div class="opt-row" id="pageSizeOptions">${Object.entries(p.sizes||{}).map(([sz,on])=>`<button class="opt ${on?(sz===selected?'selected':''):'disabled'}" type="button" ${on?`onclick="selectProductPageSize('${esc(sz)}')"`:'disabled'}>${esc(sz)}${on?'':' · OUT'}</button>`).join('')}</div>
-        <div class="product-actions"><button class="btn primary" type="button" onclick="confirmPageAdd('${esc(p.id)}')">ADD TO BAG →</button><a class="btn" href="checkout.html" onclick="return confirmPageAdd('${esc(p.id)}')">BUY NOW</a></div>
+        <div class="product-actions"><button class="btn primary" type="button" onclick="confirmPageAdd('${esc(p.id)}')">ADD TO BAG →</button><button class="btn buy-now-btn" type="button" disabled onclick="buyNowFromPage('${esc(p.id)}')">BUY NOW →</button></div>
         <div class="detail-trust"><span>✓ PREMIUM FABRIC</span><span>✓ SECURE CHECKOUT</span><span>✓ TRACKED DELIVERY</span></div>
       </div>
     </div>
@@ -980,7 +988,7 @@ window.placeOrder=async()=>{
     const saved=await savePendingOrder(order);
     if(!saved)toast('Order draft saved locally. Continuing to secure payment…');
     localStorage.setItem('kryven-cashfree-pending-order',JSON.stringify(order));
-    const r=await fetch('/api/create-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:order.id,order_amount:order.total,customer:{customer_id:order.customer.customerId||order.customer.id||order.id,customer_name:name,customer_email:email,customer_phone:phone}})});
+    const r=await fetch('/api/create-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:order.id,order_amount:order.total,customer:{customer_id:order.customer.id||order.id,customer_name:name,customer_email:email,customer_phone:phone}})});
     const data=await r.json().catch(()=>({}));
     if(!r.ok||!data.payment_session_id)throw new Error(data.error||'Cashfree payment session was not created');
     const CashfreeFactory=await ensureCashfreeSdk();
@@ -1015,7 +1023,7 @@ function render(){
     const p=product(new URLSearchParams(location.search).get('id')||state.products[0]?.id);
     if(p){
       window.__pageSelected={id:p.id,size:'',color:p.colors?.[0]||'Black'};
-      setTimeout(()=>{bindProductPageSwipe(p.id);init3D(`page-three-${p.id}`,p)},80);
+      setTimeout(()=>{bindProductPageSwipe(p.id);init3D(`page-three-${p.id}`,p);updateBuyNowButton()},80);
     }
   }
   setTimeout(bindMobileSearchAutoHide,40);
@@ -1099,10 +1107,16 @@ window.addEventListener("load",()=>setTimeout(handleCashfreeReturn,300));
   };
 
   window.buyNowFromPage=function(id){
-    if(!window.confirmPageAdd(id)) return false;
-    // Use a native navigation instead of a delayed callback/re-render.
+    const p=product(id);
+    if(!p){toast('Product is no longer available');return false;}
+    const sel=window.__pageSelected||{};
+    const size=sel.size||'';
+    // Customer must explicitly select an available size before Buy Now becomes active.
+    if(!size || !p.sizes?.[size]){toast('Please select your size first');document.getElementById('pageSizeOptions')?.scrollIntoView({behavior:'smooth',block:'center'});updateBuyNowButton();return false;}
+    const color=sel.color||p.colors?.[0]||'Black';
+    if(!stableAddToBag(id,size,color)) return false;
     window.location.assign(new URL('checkout.html',window.location.href).href);
-    return true;
+    return false;
   };
 
   window.openCheckout=function(){

@@ -27,7 +27,8 @@ export default async function handler(req,res){
         customer_phone:customerPhone
       },
       order_meta:{
-        return_url:`${origin}/payment.html?cashfree_return=1&order_id={order_id}`
+        return_url:`${origin}/payment.html?cashfree_return=1&order_id={order_id}`,
+        notify_url:`${origin}/api/webhook`
       }
     };
     const r=await fetch(`${baseUrl}/pg/orders`,{method:'POST',headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':apiVersion,Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});
