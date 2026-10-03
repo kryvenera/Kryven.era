@@ -241,3 +241,27 @@ a{color:inherit;text-decoration:none}button,input,textarea,select{font:inherit}b
 .bag-line-main h3{overflow-wrap:anywhere}
 .bag-line>strong,.bag-line>b{white-space:nowrap}
 @media(max-width:680px){.bag-line{grid-template-columns:70px minmax(0,1fr)!important;align-items:start!important}.bag-line img{width:70px;height:84px}.bag-line>b,.bag-line>strong{grid-column:2;justify-self:start;margin-top:5px}.bag-summary .btn{font-size:10px;letter-spacing:.07em}}
+
+
+/* KRYVEN ERA rolling offer marquee */
+.offer-marquee{height:40px;overflow:hidden;background:#0b0c0b;color:#fff;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;position:relative;z-index:5;}
+.offer-marquee::before,.offer-marquee::after{content:"";position:absolute;top:0;bottom:0;width:34px;z-index:2;pointer-events:none;}
+.offer-marquee::before{left:0;background:linear-gradient(90deg,#0b0c0b,rgba(11,12,11,0));}
+.offer-marquee::after{right:0;background:linear-gradient(270deg,#0b0c0b,rgba(11,12,11,0));}
+.offer-marquee-track{display:flex;align-items:center;gap:34px;width:max-content;min-width:100%;padding-left:34px;white-space:nowrap;animation:kryvenOfferRoll 18s linear infinite;}
+.offer-marquee-track span{font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;}
+.offer-marquee-track i{font-style:normal;color:#d7ad59;font-size:13px;}
+.offer-marquee:hover .offer-marquee-track{animation-play-state:paused;}
+@keyframes kryvenOfferRoll{from{transform:translateX(0)}to{transform:translateX(-50%)} }
+.header{top:0;}
+.header.floating-header{top:0;}
+.header.floating-header .offer-marquee{background:#0b0c0b;color:#fff;}
+@media(max-width:680px){
+  .offer-marquee{height:36px;}
+  .offer-marquee-track{gap:22px;padding-left:22px;animation-duration:14s;}
+  .offer-marquee-track span{font-size:10px;letter-spacing:.1em;}
+  .offer-marquee-track i{font-size:11px;}
+  .header{top:0;}
+  .header.floating-header{top:0;}
+  .header.floating-header .nav{min-height:64px;}
+}

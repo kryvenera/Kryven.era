@@ -15,18 +15,23 @@ function readState(){let s={};try{s=JSON.parse(localStorage.getItem(STATE_KEY)||
 let state=readState();
 function saveState(){try{localStorage.setItem(STATE_KEY,JSON.stringify(state));localStorage.setItem(CART_KEY,JSON.stringify(state.cart))}catch{}}
 function product(id){return state.products.find(p=>String(p.id)===String(id))||fallback.products.find(p=>String(p.id)===String(id))||null}
-function money(n){return `${state.settings.currency||'₹'}${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`}
+function num(v){if(typeof v==='number'&&Number.isFinite(v))return v;if(v===null||v===undefined)return 0;const n=Number(String(v).replace(/[^0-9.\-]/g,''));return Number.isFinite(n)?n:0}
+function productUnitPrice(p,x={}){const candidates=[p?.price,p?.sellingPrice,p?.salePrice,p?.finalPrice,p?.discountedPrice,p?.unitPrice,p?.amount,x?.unitPrice,x?.price,x?.salePrice,x?.sellingPrice,x?.originalUnitPrice];for(const v of candidates){const n=num(v);if(n>0)return n}return 0}
+function productName(p,x={}){return p?.name||x?.name||x?.title||x?.productName||x?.id||'Product'}
+function productImage(p,x={}){return p?.images?.[0]||p?.image||x?.image||x?.imageUrl||''}
+function money(n){return `${state.settings.currency||'₹'}${num(n).toLocaleString('en-IN',{maximumFractionDigits:2})}`}
 function esc(v){return String(v??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
 function getCart(){let c=Array.isArray(state.cart)?state.cart:[];if(!c.length){try{const x=JSON.parse(localStorage.getItem(CART_KEY)||'[]');if(Array.isArray(x))c=x}catch{}};return c}
 function offerActive(p){const o=p?.offer||{}, setting=state.settings?.offers||{};return !!o.enabled&&((o.type==='percent'&&setting.percent50?.enabled!==false)||(o.type==='bogo'&&setting.bogo?.enabled!==false))}
-function linePrice(p,q){q=Math.max(1,Number(q||1));if(!offerActive(p))return Number(p?.price||0)*q;const o=p.offer||{};if(o.type==='percent'){const pct=Math.max(1,Math.min(100,Number(o.percent||50)));return Math.round(Number(p.price||0)*q*(1-pct/100))}if(o.type==='bogo')return Number(p.price||0)*(q-Math.floor(q/2));return Number(p.price||0)*q}
-function pricing(){const cart=getCart();let subtotal=0,after=0;for(const x of cart){const p=product(x.id);if(!p)continue;const q=Math.max(1,Number(x.qty||1));subtotal+=Number(p.price||0)*q;after+=linePrice(p,q)}const discount=Math.max(0,subtotal-after);const shipping=Number(state.settings.shipping||0);return{subtotal,discount,shipping,total:Math.max(0,after+shipping)}}
+function linePrice(p,q,x={}){q=Math.max(1,num(q)||1);const unit=productUnitPrice(p,x);if(!unit)return 0;if(!offerActive(p))return unit*q;const o=p.offer||{};if(o.type==='percent'){const pct=Math.max(1,Math.min(100,num(o.percent)||50));return Math.round(unit*q*(1-pct/100))}if(o.type==='bogo')return unit*(q-Math.floor(q/2));return unit*q}
+function pricing(){const cart=getCart();let subtotal=0,after=0;for(const x of cart){const p=product(x.id);const q=Math.max(1,num(x.qty)||1);const unit=productUnitPrice(p,x);if(!unit)continue;subtotal+=unit*q;after+=linePrice(p,q,x)}const discount=Math.max(0,subtotal-after);const shipping=num(state.settings.shipping);return{subtotal,discount,shipping,total:Math.max(0,after+shipping)}}
 function customerId(){let id=state.profile.customerId||localStorage.getItem('kryven-era-customer-id')||'';if(!id){const seed=(state.profile.phone||state.profile.email||state.profile.name||'customer')+'|'+Date.now();let h=0;for(let i=0;i<seed.length;i++)h=((h<<5)-h)+seed.charCodeAt(i)|0;id='KE-C-'+Math.abs(h).toString(36).toUpperCase().slice(-7);localStorage.setItem('kryven-era-customer-id',id)}state.profile.customerId=id;return id}
 function loadDraft(){try{return JSON.parse(localStorage.getItem(DRAFT_KEY)||'{}')||{}}catch{return {}}}
 function saveDraft(fromForm=true){const q=loadDraft();if(fromForm){const ids=['coName','coPhone','coEmail','coAddress','coLandmark','coHouse','coCity','coState','coPin'];for(const id of ids){const el=document.getElementById(id);if(el)q[({coName:'name',coPhone:'phone',coEmail:'email',coAddress:'address',coLandmark:'landmark',coHouse:'houseNumber',coCity:'city',coState:'state',coPin:'pincode'})[id]]=el.value.trim()}}state.profile={...state.profile,...q,customerId:customerId()};try{localStorage.setItem(DRAFT_KEY,JSON.stringify(state.profile))}catch{};saveState()}
 function toast(msg){let el=document.getElementById('flowToast');if(!el){el=document.createElement('div');el.id='flowToast';el.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:500;background:#111512;color:#fff;padding:12px 16px;border-radius:999px;font:700 11px/1.2 Arial,sans-serif;box-shadow:0 12px 34px rgba(0,0,0,.2)';document.body.appendChild(el)}el.textContent=msg;clearTimeout(el._t);el._t=setTimeout(()=>el.remove(),2800)}
 function orderId(){return 'KE-'+new Date().getFullYear()+'-'+Math.floor(100+Math.random()*900)+'-'+String(Date.now()).slice(-5)}
-function buildOrder(payment){const cart=getCart(),p=pricing();return{id:orderId(),createdAt:new Date().toISOString(),customerId:customerId(),customer:{...state.profile},items:cart.map(x=>{const pr=product(x.id);return{...x,name:pr?.name||x.id,image:pr?.images?.[0]||'',lineTotal:linePrice(pr,x.qty),originalUnitPrice:Number(pr?.price||0)}}),subtotal:p.subtotal,discount:p.discount,total:p.total,shipping:p.shipping,payment,status:payment==='cod'?'Placed':'Awaiting Payment Verification',paymentVerified:false,advancePaid:payment==='cod'?Math.round(p.total*Math.max(0,Math.min(100,Number(state.settings.payments?.codAdvancePercent??20)))/100):p.total,remainingDue:payment==='cod'?Math.max(0,p.total-Math.round(p.total*Math.max(0,Math.min(100,Number(state.settings.payments?.codAdvancePercent??20)))/100)):0}}
+function normalizeCart(){let carts=[];try{const a=JSON.parse(localStorage.getItem(CART_KEY)||'null');if(Array.isArray(a))carts.push(a)}catch{};if(Array.isArray(state.cart)&&state.cart.length)carts.push(state.cart);const merged=[];for(const c of carts){for(const x of c||[]){if(!x||!x.id)continue;const q=Math.max(1,Number(x.qty||1));const key=String(x.id)+'|'+String(x.size||'')+'|'+String(x.color||'');const found=merged.find(y=>y._key===key);if(found)found.qty=Math.max(found.qty,q);else merged.push({...x,qty:q,_key:key})}}for(const x of merged)delete x._key;return merged}
+function buildOrder(payment){const cart=normalizeCart();state.cart=cart;saveState();const items=cart.map(x=>{const pr=product(x.id);const unit=productUnitPrice(pr,x);const qty=Math.max(1,num(x.qty)||1);const line=linePrice(pr,qty,x)||unit*qty;return{...x,name:productName(pr,x),image:productImage(pr,x),lineTotal:num(line),originalUnitPrice:unit}}).filter(x=>x.originalUnitPrice>0&&x.lineTotal>=0);let subtotal=items.reduce((a,x)=>a+num(x.originalUnitPrice)*Math.max(1,num(x.qty)||1),0);let total=items.reduce((a,x)=>a+num(x.lineTotal),0);const shipping=num(state.settings.shipping);total=Math.max(0,total+shipping);const discount=Math.max(0,subtotal-(total-shipping));const p={subtotal,discount,shipping,total};return{id:orderId(),createdAt:new Date().toISOString(),customerId:customerId(),customer:{...state.profile},items,subtotal:p.subtotal,discount:p.discount,total:p.total,shipping:p.shipping,payment,status:payment==='cod'?'Placed':'Awaiting Payment Verification',paymentVerified:false,advancePaid:payment==='cod'?Math.round(p.total*Math.max(0,Math.min(100,num(state.settings.payments?.codAdvancePercent??20)))/100):p.total,remainingDue:payment==='cod'?Math.max(0,p.total-Math.round(p.total*Math.max(0,Math.min(100,num(state.settings.payments?.codAdvancePercent??20)))/100)):0}}
 async function cloudSave(order){try{const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),5000);const row={id:Number(`${Date.now()}${Math.floor(Math.random()*1000)}`),'Customer name':order.customer.name||'','Customer address':`${order.customer.houseNumber?order.customer.houseNumber+', ':''}${order.customer.address||''}${order.customer.landmark?', '+order.customer.landmark:''}, ${order.customer.city||''}, ${order.customer.state||''}, ${order.customer.pincode||''}`,'Product name':JSON.stringify(order),'Customer number':order.customer.phone||'','Product price':String(order.total||0),'Product size':order.items.map(x=>`${x.name} x${x.qty||1} ${x.size||''}`).join(' | ')};const r=await fetch(SUPABASE_REST,{method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(row),signal:controller.signal});clearTimeout(timer);return r.ok}catch{return false}}
 function validate(){saveDraft(true);const req=[['coName','Full name'],['coPhone','Mobile number'],['coAddress','Full address'],['coLandmark','Landmark'],['coCity','City'],['coState','State'],['coPin','Pincode']];let ok=true;for(const [id,label] of req){const el=document.getElementById(id);el?.classList.remove('field-invalid');document.querySelector(`#err-${id}`)?.remove();if(!el?.value.trim()){ok=false;if(el){el.classList.add('field-invalid');const e=document.createElement('div');e.id=`err-${id}`;e.className='checkout-field-error';e.textContent=`${label} is required`;el.parentElement.appendChild(e)}}}const phone=(document.getElementById('coPhone')?.value||'').replace(/\D/g,'');if(phone&&!/^\d{10}$/.test(phone)){ok=false;const el=document.getElementById('coPhone');el.classList.add('field-invalid');const e=document.createElement('div');e.className='checkout-field-error';e.textContent='Enter a valid 10-digit mobile number';el.parentElement.appendChild(e)}const pin=document.getElementById('coPin')?.value.trim()||'';if(pin&&!/^\d{6}$/.test(pin)){ok=false;const el=document.getElementById('coPin');el.classList.add('field-invalid');const e=document.createElement('div');e.className='checkout-field-error';e.textContent='Enter a valid 6-digit pincode';el.parentElement.appendChild(e)}return ok}
 function checkoutFieldHtml(id,label,placeholder,kind,value){
@@ -62,7 +67,7 @@ function bindCheckout(){for(const id of ['coName','coPhone','coEmail','coAddress
   order=rebuildPaymentOrder(order)||order;
   if(!Array.isArray(order.items)||!order.items.length||!(Number(order.total)>0)){
     const box=document.getElementById('checkoutError');
-    if(box){box.textContent='Your cart total is ₹0. Please return to the product/bag and add the item again before confirming payment.';box.className='checkout-error show';}
+    if(box){box.textContent=`Unable to calculate the order total. Items found: ${Array.isArray(order?.items)?order.items.length:0}. Please refresh the checkout once and try again.`;box.className='checkout-error show';}
     return;
   }
   localStorage.setItem('kryven-cashfree-pending-order',JSON.stringify(order));
@@ -72,31 +77,27 @@ function renderCheckout(){if(!getCart().length){document.getElementById('checkou
 function loadCashfree(){return new Promise((resolve,reject)=>{if(typeof window.Cashfree==='function')return resolve(window.Cashfree);const s=document.createElement('script');s.src='https://sdk.cashfree.com/js/v3/cashfree.js';s.async=true;s.onload=()=>resolve(window.Cashfree);s.onerror=()=>reject(new Error('Cashfree SDK could not be loaded. Please check your connection.'));document.head.appendChild(s)})}
 function rebuildPaymentOrder(raw){
   let order=raw&&typeof raw==='object'?{...raw}:null;
-  const items=Array.isArray(order?.items)?order.items:[];
-  if(!order||!items.length){
-    const cart=getCart();
-    if(cart.length){order=buildOrder('cashfree');}
+  const liveCart=normalizeCart();
+  if(liveCart.length){
+    const rebuilt=buildOrder('cashfree');
+    if(rebuilt.items.length && rebuilt.total>0 && (!order||!Array.isArray(order.items)||!order.items.length||!(num(order.total)>0))) order=rebuilt;
   }
   if(!order)return null;
   const safeItems=Array.isArray(order.items)?order.items:[];
-  if(safeItems.length){
-    let subtotal=0,total=0;
-    for(const x of safeItems){
-      const qty=Math.max(1,Number(x.qty||1));
-      const unit=Number(x.originalUnitPrice||0);
-      const line=Number(x.lineTotal);
-      if(Number.isFinite(unit)&&unit>0)subtotal+=unit*qty;
-      if(Number.isFinite(line)&&line>=0)total+=line;
-      else if(Number.isFinite(unit)&&unit>0)total+=unit*qty;
-    }
-    const shipping=Number(order.shipping||0);
-    const storedSubtotal=Number(order.subtotal||0);
-    const storedTotal=Number(order.total||0);
-    if(subtotal>0)order.subtotal=subtotal;
-    if(total>0)order.total=Math.max(0,total+shipping);
-    if(order.total>0&&order.subtotal>0)order.discount=Math.max(0,order.subtotal-(order.total-shipping));
-    else if(storedSubtotal>0&&storedTotal>0){order.subtotal=storedSubtotal;order.total=storedTotal;order.discount=Math.max(0,Number(order.discount||0));}
+  let subtotal=0,total=0;
+  for(const x of safeItems){
+    const pr=product(x.id);
+    const qty=Math.max(1,num(x.qty)||1);
+    const unit=productUnitPrice(pr,x);
+    const line=linePrice(pr,qty,x)||num(x.lineTotal)||unit*qty;
+    if(unit>0)subtotal+=unit*qty;
+    if(line>=0)total+=line;
   }
+  const shipping=num(order.shipping);
+  if(subtotal>0)order.subtotal=subtotal;
+  if(total>0)order.total=Math.max(0,total+shipping);
+  if(num(order.total)>0&&num(order.subtotal)>0)order.discount=Math.max(0,num(order.subtotal)-(num(order.total)-shipping));
+  if(!num(order.total)){const rebuilt=buildOrder('cashfree');if(rebuilt.items.length&&rebuilt.total>0)order=rebuilt;}
   try{localStorage.setItem('kryven-cashfree-pending-order',JSON.stringify(order))}catch{}
   return order;
 }

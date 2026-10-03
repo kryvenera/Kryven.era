@@ -767,7 +767,7 @@ function setTrackingForStatus(o,status,note=''){
 }
 state.orders.forEach(ensureOrderTracking);
 
-function header(){const home=document.body.dataset.page==='home';return `<header class="header hero-header ${home?'floating-header':''}"><div class="container nav">
+function header(){const home=document.body.dataset.page==='home';const offers=ensureMerchandisingSettings(state.settings).offers;const offerA=offers?.bogo?.enabled?(offers.bogo?.label||'BUY 1 GET 1 FREE'):'BUY 1 GET 1 FREE';const offerB=offers?.percent50?.enabled?(offers.percent50?.label||'FLAT 50% OFF'):'FLAT 50% OFF';const marquee=[offerA,offerB,offerA,offerB,offerA,offerB].map(x=>`<span>${esc(x)}</span>`).join('<i aria-hidden="true">•</i>');return `<header class="header hero-header ${home?'floating-header':''}"><div class="offer-marquee" aria-label="Current offers"><div class="offer-marquee-track">${marquee}</div></div><div class="container nav">
   <a class="logo premium-logo" href="index.html" aria-label="KRYVEN ERA home"><img class="logo-image" src="favicon.png" alt="KRYVEN ERA logo"><span class="logo-text">${esc(state.settings.brand)}<small>${esc(state.settings.tagline||'THE ERA OF UNCOMPROMISING STYLE')}</small></span></a>
   <nav class="nav-links"><a href="index.html">HOME</a><a href="shop.html">SHOP</a><a href="categories.html">CATEGORIES</a><a href="tracking.html">TRACK ORDER</a><a href="help-care.html">CONTACT</a></nav>
   <div class="search-wrap"><input id="topSearch" class="search" placeholder="Search the era…" onfocus="renderSearchOverlay('')" oninput="search(this.value)"/><span class="search-icon">⌕</span><button class="scan-btn" title="Scan barcode" onclick="startBarcodeScan()">▥</button></div>
