@@ -21,7 +21,7 @@ function productName(p,x={}){return p?.name||x?.name||x?.title||x?.productName||
 function productImage(p,x={}){return p?.images?.[0]||p?.image||x?.image||x?.imageUrl||''}
 function money(n){return `${state.settings.currency||'₹'}${num(n).toLocaleString('en-IN',{maximumFractionDigits:2})}`}
 function esc(v){return String(v??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
-function getCart(){let c=Array.isArray(state.cart)?state.cart:[];if(!c.length){try{const x=JSON.parse(localStorage.getItem(CART_KEY)||'[]');if(Array.isArray(x))c=x}catch{}};return c}
+function getCart(){try{const raw=localStorage.getItem(CART_KEY);if(raw!==null){const x=JSON.parse(raw);if(Array.isArray(x)){state.cart=x;return x}}}catch{};state.cart=Array.isArray(state.cart)?state.cart:[];return state.cart}
 function offerActive(p){const o=p?.offer||{}, setting=state.settings?.offers||{};return !!o.enabled&&((o.type==='percent'&&setting.percent50?.enabled!==false)||(o.type==='bogo'&&setting.bogo?.enabled!==false))}
 function linePrice(p,q,x={}){q=Math.max(1,num(q)||1);const unit=productUnitPrice(p,x);if(!unit)return 0;if(!offerActive(p))return unit*q;const o=p.offer||{};if(o.type==='percent'){const pct=Math.max(1,Math.min(100,num(o.percent)||50));return Math.round(unit*q*(1-pct/100))}if(o.type==='bogo')return unit*(q-Math.floor(q/2));return unit*q}
 function pricing(){const cart=getCart();let subtotal=0,after=0;for(const x of cart){const p=product(x.id);const q=Math.max(1,num(x.qty)||1);const unit=productUnitPrice(p,x);if(!unit)continue;subtotal+=unit*q;after+=linePrice(p,q,x)}const discount=Math.max(0,subtotal-after);const shipping=num(state.settings.shipping);return{subtotal,discount,shipping,total:Math.max(0,after+shipping)}}
