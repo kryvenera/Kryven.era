@@ -22,3 +22,10 @@ The Cashfree server functions are:
 - `/api/webhook`
 
 Important: GitHub Pages alone cannot safely run the Cashfree server functions because the Secret Key must stay server-side. Use GitHub as the source repository and Vercel (or another server runtime) to deploy the `api/` functions.
+
+
+## Final checkout fix
+- Cashfree SDK is lazy-loaded on checkout action; it no longer blocks checkout.html from rendering.
+- Customer details persist in localStorage key `kryven-era-customer-profile-v1` and are shared by COD and Cashfree choices.
+- Checkout/customer pages are not rebuilt by the 10-second live catalog refresh while the user is interacting.
+- Cashfree serverless functions are in the single root-level `api/` folder.
