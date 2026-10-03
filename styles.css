@@ -229,3 +229,15 @@ a{color:inherit;text-decoration:none}button,input,textarea,select{font:inherit}b
   .offer-opening-head h2{font-size:42px}
   .offer-card-red{padding:20px 18px}
 }
+
+/* FINAL BAG/HEADER ALIGNMENT FIX */
+.bag-btn{display:inline-grid!important;place-items:center!important;line-height:1!important;text-decoration:none!important;overflow:visible}
+.bag-btn svg{display:block;width:18px;height:18px;flex:none}
+.bag-btn .badge{z-index:2}
+.bag-summary .btn{display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;white-space:nowrap!important;min-height:54px}
+.bag-summary{min-width:0}
+.bag-line{min-width:0}
+.bag-line-main{min-width:0}
+.bag-line-main h3{overflow-wrap:anywhere}
+.bag-line>strong,.bag-line>b{white-space:nowrap}
+@media(max-width:680px){.bag-line{grid-template-columns:70px minmax(0,1fr)!important;align-items:start!important}.bag-line img{width:70px;height:84px}.bag-line>b,.bag-line>strong{grid-column:2;justify-self:start;margin-top:5px}.bag-summary .btn{font-size:10px;letter-spacing:.07em}}
