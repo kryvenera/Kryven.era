@@ -33,7 +33,7 @@ export default async function handler(req,res){
     };
     const r=await fetch(`${baseUrl}/pg/orders`,{method:'POST',headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':apiVersion,Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await r.json().catch(()=>({}));
-    if(!r.ok) return res.status(r.status).json({error:data?.message||data?.error_description||'Cashfree order creation failed',details:data});
+    if(!r.ok) return res.status(r.status).json({error:data?.message||data?.error_description||data?.error||'Cashfree order creation failed',cashfree_status:r.status,details:data});
     return res.status(200).json({order_id:data.order_id||order_id,payment_session_id:data.payment_session_id,cashfree_mode:env});
   }catch(e){return res.status(500).json({error:e.message||'Server error'});}
 }
