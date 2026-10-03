@@ -1,0 +1,10 @@
+KRYVEN ERA — CASHFREE AMOUNT FIX
+
+Fixes included:
+- Rebuilds a stale/zero-value pending Cashfree order from the current cart.
+- Recalculates subtotal, line totals, discount and total from saved order items when possible.
+- Prevents Online Payment from sending a ₹0 order to Cashfree.
+- Keeps the single CONFIRM ORDER checkout flow.
+- Keeps Cashfree diagnostic response without exposing secrets.
+
+After deploying, clear/reload the checkout once and add a product again if an old pending order was already stored in the browser.
