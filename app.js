@@ -1015,22 +1015,45 @@ setTimeout(()=>showReferralOnce(),700);
   // Redesign the Grand Opening strip with both codes visible.
   offersBanner=function(){const o=merch().offers;if(!o?.grandOpening?.enabled)return '';return `<section class="grand-opening-offers grand-opening-premium"><div class="container"><div class="offer-opening-head"><div><div class="offer-kicker-red">KRYVEN ERA / GRAND OPENING</div><h2>${esc(o.grandOpening.title)}</h2><p>${esc(o.grandOpening.subtitle)}</p></div><span class="offer-live-pill">LIVE</span></div><div class="offer-cards-red">${o.percent50?.enabled?`<article class="offer-card-red"><span>50% OFF</span><b>${esc(o.percent50.subtitle||'FLAT 50% OFF')}</b><small>Coupon code</small><strong class="offer-code-red">${esc(o.percent50.couponCode||'GLITCH50')}</strong></article>`:''}${o.bogo?.enabled?`<article class="offer-card-red"><span>BUY 1 GET 1 FREE</span><b>${esc(o.bogo.subtitle||'BUY 1 GET 1 FREE')}</b><small>Coupon code</small><strong class="offer-code-red">${esc(o.bogo.couponCode||'GLITCHB1G1')}</strong></article>`:''}</div>${o.grandOpening.note?`<div class="offer-opening-note">${esc(o.grandOpening.note)} · Apply one code at checkout.</div>`:''}</div></section>`};
 
-  // Premium entry animation on each new browser session.
-  const legacyReferral=showReferralOnce;
+  // Grand Opening entry: shown only on the homepage, once per browser session.
   showReferralOnce=function(){
-    if(sessionStorage.getItem('ke-grand-opening-seen')==='1'){legacyReferral();return;}
+    const isHome=document.body.dataset.page==='home' || location.pathname.endsWith('/') || location.pathname.endsWith('/index.html');
+    if(!isHome || sessionStorage.getItem('ke-grand-opening-seen')==='1') return;
     openGrandOpeningEntry();
   };
   function openGrandOpeningEntry(){
     if(document.getElementById('grandOpeningEntry'))return;
     const o=merch().offers;
-    const pct=o.percent50, bogo=o.bogo;
-    const el=document.createElement('div');el.id='grandOpeningEntry';el.className='grand-entry-overlay';
-    el.innerHTML=`<div class="grand-entry-card"><div class="grand-entry-kicker">KRYVEN ERA / GRAND OPENING</div><h2>GRAND<br><span>OPENING</span></h2><div class="grand-entry-offer"><div class="grand-entry-label">BUY 1 GET 1 FREE</div><div class="grand-entry-code">${esc(bogo.couponCode||'GLITCHB1G1')}</div></div><div class="grand-entry-divider"></div><div class="grand-entry-offer"><div class="grand-entry-label">FLAT ${esc(pct.defaultPercent||50)}% OFF</div><div class="grand-entry-code">${esc(pct.couponCode||'GLITCH50')}</div></div><p>Use one coupon code at checkout.</p><button class="btn primary grand-entry-button" onclick="closeGrandOpeningEntry()">ENTER THE ERA →</button></div>`;
-    document.body.appendChild(el);document.body.classList.add('grand-opening-active');
-    setTimeout(()=>el.classList.add('show'),20);setTimeout(()=>{if(el.isConnected)closeGrandOpeningEntry()},9000);
+    const pct=o.percent50||{}, bogo=o.bogo||{};
+    const el=document.createElement('div');
+    el.id='grandOpeningEntry';
+    el.className='grand-entry-overlay';
+    el.innerHTML=`<div class="grand-entry-card grand-entry-classic">
+      <div class="grand-entry-art" aria-hidden="true"></div>
+      <div class="grand-entry-wash"></div>
+      <div class="grand-entry-content">
+        <div class="grand-entry-kicker">KRYVEN ERA / GRAND OPENING</div>
+        <h2>GRAND<br><span>OPENING</span></h2>
+        <div class="grand-entry-subline">NEW STORE&nbsp;&nbsp; / &nbsp;&nbsp;NEW COLLECTION&nbsp;&nbsp; / &nbsp;&nbsp;SAME ERA</div>
+        <div class="grand-entry-offer-grid">
+          <article class="grand-entry-offer-card"><span>BUY 1 GET 1</span><b>FREE</b><small>USE COUPON CODE</small><strong>${esc(bogo.couponCode||'GLITCHB1G1')}</strong></article>
+          <article class="grand-entry-offer-card"><span>FLAT</span><b>${esc(pct.defaultPercent||50)}% OFF</b><small>USE COUPON CODE</small><strong>${esc(pct.couponCode||'GLITCH50')}</strong></article>
+        </div>
+        <div class="grand-entry-bottom"><span>LIMITED TIME ONLY</span><button class="grand-entry-button" onclick="closeGrandOpeningEntry()">ENTER THE ERA <i>→</i></button></div>
+      </div>
+    </div>`;
+    document.body.appendChild(el);
+    document.body.classList.add('grand-opening-active');
+    requestAnimationFrame(()=>el.classList.add('show'));
+    setTimeout(()=>{if(el.isConnected)closeGrandOpeningEntry()},10000);
   }
-  window.closeGrandOpeningEntry=()=>{const el=document.getElementById('grandOpeningEntry');sessionStorage.setItem('ke-grand-opening-seen','1');if(!el){legacyReferral();return}el.classList.remove('show');setTimeout(()=>{el.remove();document.body.classList.remove('grand-opening-active');legacyReferral()},450)};
+  window.closeGrandOpeningEntry=()=>{
+    const el=document.getElementById('grandOpeningEntry');
+    sessionStorage.setItem('ke-grand-opening-seen','1');
+    if(!el)return;
+    el.classList.remove('show');
+    setTimeout(()=>{el.remove();document.body.classList.remove('grand-opening-active')},420);
+  };
   window.openGrandOpeningEntry=openGrandOpeningEntry;
   merch();
   setTimeout(()=>{if(document.body.dataset.page==='home'||location.pathname.endsWith('/')||location.pathname.endsWith('/index.html'))showReferralOnce();},350);
