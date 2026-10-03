@@ -7,12 +7,32 @@ export default async function handler(req,res){
     const clientId=process.env.CASHFREE_CLIENT_ID;
     const clientSecret=process.env.CASHFREE_CLIENT_SECRET;
     if(!clientId||!clientSecret) return res.status(500).json({error:'Cashfree environment variables are missing'});
-    const base=String(process.env.CASHFREE_ENV||'production').toLowerCase()==='sandbox'?'https://sandbox.cashfree.com':'https://api.cashfree.com';
-    const origin=`${req.headers['x-forwarded-proto']||'https'}://${req.headers.host}`;
-    const body={order_id:String(order_id),order_amount:Number(amount.toFixed(2)),order_currency:'INR',customer_details:{customer_id:String(customer?.customer_id||order_id),customer_name:String(customer?.customer_name||'Kryven Customer'),customer_email:String(customer?.customer_email||''),customer_phone:String(customer?.customer_phone||'')},order_meta:{return_url:`${origin}/checkout.html?cashfree_return=1&order_id={order_id}`}};
-    const r=await fetch(`${base}/pg/orders`,{method:'POST',headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':'2025-01-01',Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});
+    const env=String(process.env.CASHFREE_ENV||'production').toLowerCase()==='sandbox'?'sandbox':'production';
+    const baseUrl=env==='sandbox'?'https://sandbox.cashfree.com':'https://api.cashfree.com';
+    const apiVersion=process.env.CASHFREE_API_VERSION||'2025-01-01';
+    const proto=String(req.headers['x-forwarded-proto']||'https').split(',')[0].trim();
+    const host=req.headers['x-forwarded-host']||req.headers.host;
+    if(!host) return res.status(500).json({error:'Unable to determine website URL'});
+    const origin=`${proto}://${host}`;
+    const customerPhone=String(customer?.customer_phone||'').replace(/\D/g,'');
+    if(!/^\d{10}$/.test(customerPhone)) return res.status(400).json({error:'A valid 10-digit customer phone number is required'});
+    const body={
+      order_id:String(order_id),
+      order_amount:Number(amount.toFixed(2)),
+      order_currency:'INR',
+      customer_details:{
+        customer_id:String(customer?.customer_id||order_id),
+        customer_name:String(customer?.customer_name||'Kryven Customer'),
+        customer_email:String(customer?.customer_email||'customer@kryvenera.in'),
+        customer_phone:customerPhone
+      },
+      order_meta:{
+        return_url:`${origin}/checkout.html?cashfree_return=1&order_id={order_id}`
+      }
+    };
+    const r=await fetch(`${baseUrl}/pg/orders`,{method:'POST',headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':apiVersion,Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await r.json().catch(()=>({}));
     if(!r.ok) return res.status(r.status).json({error:data?.message||data?.error_description||'Cashfree order creation failed',details:data});
-    return res.status(200).json({order_id:data.order_id||order_id,payment_session_id:data.payment_session_id});
+    return res.status(200).json({order_id:data.order_id||order_id,payment_session_id:data.payment_session_id,cashfree_mode:env});
   }catch(e){return res.status(500).json({error:e.message||'Server error'});}
 }

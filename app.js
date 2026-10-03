@@ -140,8 +140,8 @@ function hydrateState(){
 hydrateState();
 ensureMerchandisingSettings(state.settings);
 function save(){
-  localStorage.setItem(KEY,JSON.stringify(state));
-  localStorage.setItem(CART_KEY,JSON.stringify(Array.isArray(state.cart)?state.cart:[]));
+  try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){console.warn('KRYVEN local state save failed',e)}
+  try{localStorage.setItem(CART_KEY,JSON.stringify(Array.isArray(state.cart)?state.cart:[]));}catch(e){console.warn('KRYVEN cart save failed',e)}
   try{window.dispatchEvent(new CustomEvent('kryven-cart-updated',{detail:{count:totalItems()}}))}catch{}
 }
 
@@ -177,8 +177,10 @@ async function loadLiveCatalog(){
   }catch(e){console.warn('KRYVEN live catalog unavailable',e);return false}
 }
 async function startLiveCatalog(){
-  await loadLiveCatalog();
+  // Render immediately so product, bag and checkout pages never wait on the catalog API.
   render();
+  const loaded=await loadLiveCatalog();
+  if(loaded)render();
   setInterval(async()=>{if(await loadLiveCatalog())render()},10000);
 }
 function money(n){return `${state.settings.currency}${Number(n).toLocaleString('en-IN')}`}
@@ -339,11 +341,15 @@ function render(){
   if(document.body.dataset.page==='product'){
     const p=product(new URLSearchParams(location.search).get('id')||state.products[0]?.id);
     if(p){
-      window.__pageSelected={id:p.id,size:'',color:p.colors?.[0]||'Black'};
+      const prev=window.__pageSelected||{};
+      const keepSize=prev.id===p.id && prev.size && p.sizes?.[prev.size] ? prev.size : '';
+      const keepColor=prev.id===p.id && prev.color && p.colors?.includes(prev.color) ? prev.color : (p.colors?.[0]||'Black');
+      window.__pageSelected={id:p.id,size:keepSize,color:keepColor};
       setTimeout(()=>{bindProductPageSwipe(p.id);init3D(`page-three-${p.id}`,p)},80);
     }
   }
   setTimeout(bindMobileSearchAutoHide,40);
+  setTimeout(bindCheckoutDraftSaving,80);
 }
 function drawDrawer(){return `<div id="drawer" class="drawer"><div class="drawer-panel" id="drawerPanel"></div></div>`}
 function drawModal(){return `<div id="modal" class="modal"><div class="modal-card" id="modalCard"></div></div>`}
@@ -381,8 +387,8 @@ window.selectProductPageSize=(s)=>{if(window.__pageSelected)window.__pageSelecte
 window.selectProductPageColor=(c)=>{if(window.__pageSelected)window.__pageSelected.color=c;const p=product(window.__pageSelected?.id||new URLSearchParams(location.search).get('id'));const img=document.getElementById('productPageMain');if(p&&img){const v=p.variantVisuals&&p.variantVisuals[c];if(v?.src)img.src=v.src;else if(p.images?.[0])img.src=p.images[0];img.style.filter=v?.filter||({Black:'brightness(.30) contrast(1.15)',White:'brightness(1.08) contrast(.92)',Red:'hue-rotate(310deg) saturate(2.1) brightness(.86)',Silver:'grayscale(.75) brightness(1.24)'}[c]||'none');}document.querySelectorAll('#pageColorOptions .opt').forEach(b=>b.classList.toggle('selected',b.textContent.trim()===c));};
 window.selectProductSize=window.selectProductPageSize;
 window.selectProductColor=window.selectProductPageColor;
-window.confirmPageAdd=(id)=>{const sel=window.__pageSelected||{};const p=product(id);const size=sel.size||'';const color=sel.color||p?.colors?.[0]||'Black';if(!p||!size||!p.sizes?.[size]){toast('Please select your size before adding to bag');document.getElementById('pageSizeOptions')?.scrollIntoView({behavior:'smooth',block:'center'});return}addToBag(id,size,color);};
-window.buyNowFromPage=(id)=>{window.confirmPageAdd(id);setTimeout(()=>{if(state.cart.length)window.openCheckout()},80)};
+window.confirmPageAdd=(id)=>{const sel=window.__pageSelected||{};const p=product(id);const size=sel.size||'';const color=sel.color||p?.colors?.[0]||'Black';if(!p||!size||!p.sizes?.[size]){toast('Please select your size before adding to bag');document.getElementById('pageSizeOptions')?.scrollIntoView({behavior:'smooth',block:'center'});return false}return addToBag(id,size,color);};
+window.buyNowFromPage=(id)=>{const added=window.confirmPageAdd(id);if(added){setTimeout(()=>window.openCheckout(),120)}return added};
 
 window.quickAddToBag=(id)=>{
   const p=product(id); if(!p)return;
@@ -510,7 +516,7 @@ window.saveProfile=()=>{
   const name=document.getElementById('pfName')?.value?.trim()||'';
   const phone=document.getElementById('pfPhone')?.value?.trim()||'';
   if(!name){toast('Full name is required');return}
-  if(!/\d{10}/.test(phone.replace(/\D/g,''))){toast('Enter a valid 10-digit mobile number');return}
+  if(phone && !/\d{10}/.test(phone.replace(/\D/g,''))){toast('Enter a valid 10-digit mobile number');return}
   state.profile={...state.profile,name,email:document.getElementById('pfEmail')?.value?.trim()||'',phone,address:document.getElementById('pfAddress')?.value?.trim()||'',landmark:document.getElementById('pfLandmark')?.value?.trim()||'',houseNumber:document.getElementById('pfHouse')?.value?.trim()||'',city:document.getElementById('pfCity')?.value?.trim()||'',state:document.getElementById('pfState')?.value?.trim()||'',pincode:document.getElementById('pfPin')?.value?.trim()||''};
   save();toast('Customer details updated');closeDrawer();render();
 }
@@ -536,7 +542,7 @@ window.trackOrder=async()=>{const key=(document.getElementById('trackId')?.value
 function openSupport(e){e?.preventDefault();openDrawer(`<div class="drawer-head"><h3>Help & Care</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="form-section" style="margin-top:15px"><h4>Need help?</h4><p class="muted">${esc(state.settings.supportText)}</p><a class="btn success" href="https://wa.me/${esc(state.settings.whatsapp)}?text=${encodeURIComponent('Hello Kryven Era, I need help with my order.') }" target="_blank" style="display:inline-block;margin-top:8px">Chat on WhatsApp</a><p class="muted" style="margin-top:16px">Support number: +${esc(state.settings.whatsapp)}</p></div>`)}
 window.openSupport=openSupport;
 
-function openCheckout(){if(!state.cart.length){toast('Your bag is empty');return}location.href='checkout.html'}
+function openCheckout(){if(!state.cart.length){toast('Your bag is empty');return}location.assign(new URL('checkout.html',location.href).href)}
 window.applyCheckoutCoupon=()=>{const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0),d=discountAmount(sub,getDiscountCode());document.getElementById('couponMsg').textContent=d?'Coupon KRYVEN10 applied.': 'Use KRYVEN10 for 10% off in this demo.';document.getElementById('sumDisc').textContent='−'+money(d);document.getElementById('sumTotal').textContent=money(sub-d+state.settings.shipping)}
 window.placeOrder=async()=>{
   if(window.__orderSubmitting)return;
@@ -553,14 +559,16 @@ window.placeOrder=async()=>{
     const id='KE-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-8);
     const order={id,createdAt:new Date().toISOString(),customer:{name,email,phone,address,landmark,houseNumber,city,state:stateName,pincode,customerId:getCustomerId()},items:structuredClone(state.cart).map(x=>({...x,image:product(x.id)?.images?.[0]||''})),subtotal:pricing.subtotal,discount:pricing.discount,total:pricing.total,payment,status:'Awaiting Payment Verification',referralSource:source};
     if(payment==='cod'){const ok=await savePlacedCODOrder(order);if(ok)showPaymentSuccess(order.id,'cod');return}
+    order.payment='cashfree';
+    // Payment should not be blocked by a temporary Supabase/RLS issue. Keep a local copy and continue to Cashfree.
     const saved=await savePendingOrder(order);
-    if(!saved)return;
+    if(!saved)toast('Order draft could not sync to the store right now. Continuing to secure payment…');
     localStorage.setItem('kryven-cashfree-pending-order',JSON.stringify(order));
-    const r=await fetch('/api/create-order.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:order.id,order_amount:order.total,customer:{customer_id:order.customer.customerId||order.id,customer_name:name,customer_email:email,customer_phone:phone}})});
+    const r=await fetch('/api/create-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:order.id,order_amount:order.total,customer:{customer_id:order.customer.customerId||order.id,customer_name:name,customer_email:email,customer_phone:phone}})});
     const data=await r.json().catch(()=>({}));
     if(!r.ok||!data.payment_session_id)throw new Error(data.error||'Cashfree payment session was not created');
-    if(typeof Cashfree!=='function')throw new Error('Cashfree checkout SDK did not load. Please refresh and try again.');
-    const cashfree=Cashfree({mode:'production'});
+    const CashfreeFactory=await ensureCashfreeSdk();
+    const cashfree=CashfreeFactory({mode:data.cashfree_mode||'production'});
     const result=await cashfree.checkout({paymentSessionId:data.payment_session_id,redirectTarget:'_self'});
     if(result?.error)throw new Error(result.error.message||'Cashfree checkout could not open');
   }catch(error){console.error('CASHFREE CHECKOUT ERROR',error);toast(error.message||'Payment could not be started');}
@@ -571,7 +579,7 @@ async function handleCashfreeReturn(){
   const orderId=qs.get('order_id'); if(!orderId)return;
   try{
     toast('Verifying your Cashfree payment…');
-    const r=await fetch('/api/status.js?orderId='+encodeURIComponent(orderId),{cache:'no-store'});
+    const r=await fetch('/api/status?orderId='+encodeURIComponent(orderId),{cache:'no-store'});
     const data=await r.json().catch(()=>({}));
     const raw=localStorage.getItem('kryven-cashfree-pending-order'); const order=raw?JSON.parse(raw):null;
     if(data.paid&&order&&order.id===orderId){await confirmVerifiedOrder(order);localStorage.removeItem('kryven-cashfree-pending-order');}
@@ -638,7 +646,12 @@ async function updateCloudOrder(order){
     return true;
   }catch(e){console.warn('SUPABASE ORDER UPDATE ERROR:',e);return false}
 }
-async function confirmVerifiedOrder(order){order.status='Placed';order.paymentVerified=true;order.paidAt=new Date().toISOString();await updateCloudOrder(order);applyLocalOrder(order);showPaymentSuccess(order.id,order.payment);return true}
+async function confirmVerifiedOrder(order){
+  order.status='Placed';order.paymentVerified=true;order.paidAt=new Date().toISOString();
+  if(order.cloudRowId) await updateCloudOrder(order);
+  else await saveOrderToSupabase(order);
+  applyLocalOrder(order);showPaymentSuccess(order.id,order.payment);return true
+}
 function cashfreeQrSource(){return state.settings.cashfreeQrImage||state.settings.cashfreeQrUrl||''}
 async function showPaymentGateway(order,payment){
   const amount=Number(order.advancePaid??order.total??0);
@@ -840,20 +853,18 @@ function checkoutCustomerFields(){
 function checkoutPaymentMethods(){
   const pay=state.settings.payments||{};
   const methods=[
-    {key:'cod',title:'Cash on Delivery',sub:`${Number(pay.codAdvancePercent??20)}% now · ${Math.max(0,100-Number(pay.codAdvancePercent??20))}% after delivery`,icon:'COD'},
-    {key:'upi',title:'UPI',sub:'Instant online payment',icon:'UPI'},
-    {key:'card',title:'Credit / Debit Card',sub:'Secure card payment',icon:'CARD'}
+    {key:'cod',title:'Cash on Delivery',sub:`${Number(pay.codAdvancePercent??20)}% now · ${Math.max(0,100-Number(pay.codAdvancePercent??20))}% after delivery`,icon:'COD',enabled:!!pay.cod},
+    {key:'cashfree',title:'Online Payment · Cashfree',sub:'UPI · Card · Net Banking',icon:'PAY',enabled:true},
   ];
-  const enabled=methods.filter(m=>pay[m.key]);
-  return `<div class="checkout-payments" data-enabled-count="${enabled.length}">${methods.map((m,i)=>{
-    const on=!!pay[m.key];
-    return `<label class="checkout-payment ${on?'is-enabled':'is-disabled'}">
-      <span class="payment-icon">${m.icon}</span><span class="payment-copy"><b>${esc(m.title)}</b><small>${esc(on?m.sub:'Disabled in Admin Panel')}</small></span>
-      <input name="pay" type="radio" value="${m.key}" ${on&&i===0&&enabled[0]?.key===m.key?'checked':''} ${on?'':'disabled'}>
-      <span class="payment-status">${on?'ENABLED':'DISABLED'}</span>
+  const enabled=methods.filter(m=>m.enabled);
+  return `<div class="checkout-payments" data-enabled-count="${enabled.length}">${methods.map((m)=>{
+    return `<label class="checkout-payment ${m.enabled?'is-enabled':'is-disabled'}">
+      <span class="payment-icon">${m.icon}</span><span class="payment-copy"><b>${esc(m.title)}</b><small>${esc(m.sub)}</small></span>
+      <input name="pay" type="radio" value="${m.key}" ${m.enabled&&m.key==='cashfree'?'checked':''} ${m.enabled?'':'disabled'}>
+      <span class="payment-status">${m.enabled?'ENABLED':'DISABLED'}</span>
     </label>`;
   }).join('')}
-  ${enabled.length?'<div class="checkout-payment-note">Payment availability is controlled from the Admin Panel.</div>':'<div class="checkout-payment-note warning">No payment method is enabled right now. Enable COD, UPI or Card from Admin → Payments.</div>'}
+  <div class="checkout-payment-note">Online payments open in Cashfree's secure checkout. COD remains separate.</div>
   </div>`;
 }
 function checkoutMarkup(){
@@ -883,7 +894,20 @@ function checkoutMarkup(){
 }
 function clearCheckoutError(id){const el=document.getElementById(id);if(!el)return;el.classList.remove('field-invalid');const msg=el.parentElement?.querySelector('.checkout-field-error');if(msg)msg.remove()}
 function setCheckoutError(id,msg){const el=document.getElementById(id);if(!el)return;el.classList.add('field-invalid');const wrap=el.parentElement;if(wrap&&!wrap.querySelector('.checkout-field-error')){const e=document.createElement('div');e.className='checkout-field-error';e.textContent=msg;wrap.appendChild(e)}}
+function persistCheckoutDraft(){
+  const p={...state.profile,customerId:getCustomerId(),name:document.getElementById('coName')?.value.trim()||state.profile.name||'',phone:document.getElementById('coPhone')?.value.trim()||state.profile.phone||'',email:document.getElementById('coEmail')?.value.trim()||state.profile.email||'',address:document.getElementById('coAddress')?.value.trim()||state.profile.address||'',landmark:document.getElementById('coLandmark')?.value.trim()||state.profile.landmark||'',houseNumber:document.getElementById('coHouse')?.value.trim()||state.profile.houseNumber||'',city:document.getElementById('coCity')?.value.trim()||state.profile.city||'',state:document.getElementById('coState')?.value.trim()||state.profile.state||'',pincode:document.getElementById('coPin')?.value.trim()||state.profile.pincode||''};
+  state.profile=p; save(); return p;
+}
+function bindCheckoutDraftSaving(){
+  if(document.body.dataset.page!=='checkout' || document.body.dataset.checkoutDraftBound==='1')return;
+  document.body.dataset.checkoutDraftBound='1';
+  ['coName','coPhone','coEmail','coAddress','coLandmark','coHouse','coCity','coState','coPin'].forEach(id=>{
+    const el=document.getElementById(id);
+    el?.addEventListener('input',()=>persistCheckoutDraft());
+  });
+}
 function validateCheckoutForm(){
+  persistCheckoutDraft();
   const required=[['coName','Full name is required'],['coPhone','Mobile number is required'],['coAddress','Full address is required'],['coLandmark','Landmark is required'],['coCity','City is required'],['coState','State is required'],['coPin','6-digit pincode is required']];
   let ok=true;
   required.forEach(([id,msg])=>{const el=document.getElementById(id);clearCheckoutError(id);if(!el?.value?.trim()){setCheckoutError(id,msg);ok=false}});
@@ -893,8 +917,8 @@ function validateCheckoutForm(){
   const enabled=[...document.querySelectorAll('input[name="pay"]:not(:disabled)')];if(!enabled.length){toast('Please enable a payment method from Admin → Payments');ok=false}else if(!document.querySelector('input[name="pay"]:checked')){setCheckoutError('coName','Select a payment method below');ok=false}
   return ok;
 }
-function syncCheckoutProfile(){state.profile={...state.profile,customerId:getCustomerId(),name:document.getElementById('coName')?.value.trim()||'',phone:document.getElementById('coPhone')?.value.trim()||'',email:document.getElementById('coEmail')?.value.trim()||'',address:document.getElementById('coAddress')?.value.trim()||'',landmark:document.getElementById('coLandmark')?.value.trim()||'',houseNumber:document.getElementById('coHouse')?.value.trim()||'',city:document.getElementById('coCity')?.value.trim()||'',state:document.getElementById('coState')?.value.trim()||'',pincode:document.getElementById('coPin')?.value.trim()||''};save()}
-window.openCheckout=()=>{if(!state.cart.length){toast('Your bag is empty');return}location.href='checkout.html'};
+function syncCheckoutProfile(){persistCheckoutDraft()}
+window.openCheckout=()=>{if(!state.cart.length){toast('Your bag is empty');return}location.assign(new URL('checkout.html',location.href).href)};
 window.applyCheckoutCoupon=()=>{
   const pricing=getCartPricing(getDiscountCode());
   const m=document.getElementById('couponMsg'),a=document.getElementById('sumSub'),o=document.getElementById('sumOffer'),b=document.getElementById('sumDisc'),c=document.getElementById('sumTotal');
@@ -902,27 +926,64 @@ window.applyCheckoutCoupon=()=>{
   if(m)m.textContent=getDiscountCode()?`Coupon ${getDiscountCode()} checked. Product offers remain active.`:'Product offers are applied automatically.';
 };
 window.placeOrder=async()=>{
-  if(window.__orderSubmitting)return;window.__orderSubmitting=true;
+  if(window.__orderSubmitting)return;
+  window.__orderSubmitting=true;
   try{
+    persistCheckoutDraft();
     if(!validateCheckoutForm()){window.scrollTo({top:120,behavior:'smooth'});return}
-    if(!await validateCartForOrder()){return}
+    if(!await validateCartForOrder())return;
     syncCheckoutProfile();
-    const name=state.profile.name,phone=state.profile.phone,email=state.profile.email,address=state.profile.address,landmark=state.profile.landmark||'',houseNumber=state.profile.houseNumber||'',city=state.profile.city,stateName=state.profile.state,pincode=state.profile.pincode;
+    const name=state.profile.name,phone=state.profile.phone,email=state.profile.email||'',address=state.profile.address,landmark=state.profile.landmark||'',houseNumber=state.profile.houseNumber||'',city=state.profile.city,stateName=state.profile.state||'',pincode=state.profile.pincode;
     const pricing=getCartPricing(getDiscountCode());
-    const payment=document.querySelector('input[name="pay"]:checked')?.value;if(!payment){toast('Select a payment method');return}
-    const source=localStorage.getItem('kryven-era-referral-source')||'',id='KE-'+new Date().getFullYear()+'-'+cryptoSafeOrderRandom();
+    const payment=document.querySelector('input[name="pay"]:checked')?.value;
+    if(!payment){toast('Select a payment method');return}
+    const source=localStorage.getItem('kryven-era-referral-source')||'';
+    const id='KE-'+new Date().getFullYear()+'-'+cryptoSafeOrderRandom()+'-'+String(Date.now()).slice(-5);
     const codPct=Math.max(0,Math.min(100,Number(state.settings.payments?.codAdvancePercent??20)));
     const advancePaid=payment==='cod'?Math.round(pricing.total*codPct/100):pricing.total;
     const customerId=getCustomerId();
     const order={id,createdAt:new Date().toISOString(),customerId,customer:{id:customerId,name,email,phone,address,landmark,houseNumber,city,state:stateName,pincode},
       items:structuredClone(state.cart).map(x=>{const p=product(x.id),q=Math.max(1,Number(x.qty||1));return {...x,image:p?.images?.[0]||'',name:p?.name||x.id,originalUnitPrice:Number(p?.price||0),unitPrice:Number((getOfferLinePrice(p,q)/q).toFixed(2)),lineTotal:Number(getOfferLinePrice(p,q).toFixed(2)),offer:p?.offer||null}}),
       subtotal:pricing.subtotal,offerDiscount:pricing.offerDiscount,couponDiscount:pricing.couponDiscount,discount:pricing.discount,total:pricing.total,payment,status:'Awaiting Payment Verification',referralSource:source,advancePaid,remainingDue:Math.max(0,pricing.total-advancePaid),codAdvancePercent:payment==='cod'?codPct:null,paymentVerified:false,catalogCheckedAt:new Date().toISOString()};
-    if(payment==='cod'){const saved=await savePlacedCODOrder(order);if(!saved)return;showPaymentSuccess(order.id,'cod');return}
-    const saved=await savePendingOrder(order);if(!saved)return;await showPaymentGateway(order,payment);
+    if(payment==='cod'){
+      const saved=await savePlacedCODOrder(order);
+      if(!saved)return;
+      showPaymentSuccess(order.id,'cod');
+      return;
+    }
+    order.payment='cashfree';
+    // Keep local order data and continue to Cashfree even if a temporary database/RLS issue occurs.
+    const saved=await savePendingOrder(order);
+    if(!saved)toast('Order draft could not sync right now. Continuing to secure payment…');
+    localStorage.setItem('kryven-cashfree-pending-order',JSON.stringify(order));
+    const r=await fetch('/api/create-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:order.id,order_amount:order.total,customer:{customer_id:order.customer.customerId||order.customer.id||order.id,customer_name:name,customer_email:email,customer_phone:phone}})});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok||!data.payment_session_id)throw new Error(data.error||'Cashfree payment session was not created');
+    const CashfreeFactory=await ensureCashfreeSdk();
+    const cashfree=CashfreeFactory({mode:data.cashfree_mode||'production'});
+    const result=await cashfree.checkout({paymentSessionId:data.payment_session_id,redirectTarget:'_self'});
+    if(result?.error)throw new Error(result.error.message||'Cashfree checkout could not open');
+  }catch(error){
+    console.error('CASHFREE CHECKOUT ERROR',error);
+    toast(error.message||'Payment could not be started');
   }finally{window.__orderSubmitting=false}
 };
+
 function cryptoSafeOrderRandom(){try{const a=new Uint32Array(1);crypto.getRandomValues(a);return String(100+Number(a[0]%900))}catch{return String(100+Math.floor(Math.random()*900))}}
 window.openProduct=(id)=>{if(id)location.href='product.html?id='+encodeURIComponent(id)};
+async function ensureCashfreeSdk(){
+  if(typeof window.Cashfree==='function')return window.Cashfree;
+  await new Promise((resolve,reject)=>{
+    const existing=document.querySelector('script[data-kryven-cashfree-sdk="1"]');
+    if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return}
+    const script=document.createElement('script');
+    script.src='https://sdk.cashfree.com/js/v3/cashfree.js';
+    script.async=true;script.dataset.kryvenCashfreeSdk='1';
+    script.onload=resolve;script.onerror=()=>reject(new Error('Cashfree checkout SDK could not be loaded. Please check your internet connection.'));
+    document.head.appendChild(script);
+  });
+  return window.Cashfree;
+}
 
 function render(){
   document.getElementById('app').innerHTML=siteBackground()+renderPage();
