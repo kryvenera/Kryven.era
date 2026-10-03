@@ -6,10 +6,11 @@ export default async function handler(req,res){
     if(!order_id||!Number.isFinite(amount)||amount<=0) return res.status(400).json({error:'Invalid order details'});
     const clientId=process.env.CASHFREE_CLIENT_ID||process.env.cashfree_client_id||process.env['cashfree-client-id'];
     const clientSecret=process.env.CASHFREE_CLIENT_SECRET||process.env.cashfree_client_secret||process.env['cashfree-client-secret'];
-    if(!clientId||!clientSecret) return res.status(500).json({error:'Cashfree environment variables are missing'});
     const env=String(process.env.CASHFREE_ENV||'production').toLowerCase()==='sandbox'?'sandbox':'production';
-    const baseUrl=env==='sandbox'?'https://sandbox.cashfree.com':'https://api.cashfree.com';
     const apiVersion=process.env.CASHFREE_API_VERSION||'2025-01-01';
+    const diagnostic={environment:env,api_version:apiVersion,client_id_present:Boolean(clientId),client_secret_present:Boolean(clientSecret),request_method:req.method};
+    if(!clientId||!clientSecret) return res.status(500).json({error:'Cashfree environment variables are missing',diagnostic});
+    const baseUrl=env==='sandbox'?'https://sandbox.cashfree.com':'https://api.cashfree.com';
     const proto=String(req.headers['x-forwarded-proto']||'https').split(',')[0].trim();
     const host=req.headers['x-forwarded-host']||req.headers.host;
     if(!host) return res.status(500).json({error:'Unable to determine website URL'});
@@ -31,9 +32,16 @@ export default async function handler(req,res){
         notify_url:`${origin}/api/webhook`
       }
     };
-    const r=await fetch(`${baseUrl}/pg/orders`,{method:'POST',headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':apiVersion,Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});
-    const data=await r.json().catch(()=>({}));
-    if(!r.ok) return res.status(r.status).json({error:data?.message||data?.error_description||data?.error||'Cashfree order creation failed',cashfree_status:r.status,details:data});
+    let r,data,raw='';
+    try{
+      r=await fetch(`${baseUrl}/pg/orders`,{method:'POST',headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':apiVersion,Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});
+      raw=await r.text();
+      try{data=JSON.parse(raw)}catch{data={raw:raw.slice(0,1000)}}
+    }catch(fetchErr){
+      return res.status(502).json({error:'Could not connect to Cashfree API',diagnostic:{...diagnostic,base_url:baseUrl},details:{message:fetchErr?.message||String(fetchErr)}});
+    }
+    if(!r.ok) return res.status(r.status).json({error:data?.message||data?.error_description||data?.error||'Cashfree order creation failed',cashfree_status:r.status,diagnostic:{...diagnostic,base_url:baseUrl,order_id,order_amount:Number(amount.toFixed(2)),customer_phone_present:Boolean(customerPhone)},details:data});
+    if(!data?.payment_session_id) return res.status(502).json({error:'Cashfree responded without payment_session_id',cashfree_status:r.status,diagnostic:{...diagnostic,base_url:baseUrl,order_id,order_amount:Number(amount.toFixed(2))},details:data});
     return res.status(200).json({order_id:data.order_id||order_id,payment_session_id:data.payment_session_id,cashfree_mode:env});
   }catch(e){return res.status(500).json({error:e.message||'Server error'});}
 }
