@@ -284,7 +284,7 @@ function pageShell(title,content){return `${header()}<main class="container page
 function bagPage(){
   if(!state.cart.length) return `<div class="empty-state bag-empty"><div class="eyebrow">YOUR BAG</div><h2>EMPTY FOR NOW.</h2><p class="muted">The next piece of your era is waiting.</p><a class="btn primary" href="shop.html">EXPLORE COLLECTION →</a></div>`;
   const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0);
-  return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-line"><img src="${p.images[0]}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3><p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'—')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(sub)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(sub+state.settings.shipping)}</b></div><button class="btn primary" style="width:100%;margin-top:14px" onclick="openCheckout()">PROCEED TO CHECKOUT →</button></aside></div>`;
+  return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-line"><img src="${p.images[0]}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3><p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'—')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(sub)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(sub+state.settings.shipping)}</b></div><a class="btn primary" style="width:100%;margin-top:14px;display:block;text-align:center" href="checkout.html" data-kryven-checkout-link>PROCEED TO CHECKOUT →</a></aside></div>`;
 }
 
 function renderPage(){const page=document.body.dataset.page||'home'; if(page==='home') return `${header()}${hero()}${categories()}${shop()}${trust()}${footer()}${drawDrawer()}${drawModal()}`;
@@ -410,7 +410,7 @@ function openBag(e){
     if(!drawer||!panel)return true;
     const rows=state.cart.map((x,i)=>{const p=product(x.id);if(!p)return '';return `<div class="bag-item"><img src="${esc(p.images?.[0]||IMG.tshirt)}"/><div><b>${esc(p.name)}</b><div class="muted" style="margin-top:4px">${esc(x.color||'Black')} · ${esc(x.size||'—')}</div><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${Math.max(1,Number(x.qty||1))}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(getOfferLinePrice(p,Math.max(1,Number(x.qty||1))))}</b></div>`}).join('');
     const pricing=getCartPricing('');
-    openDrawer(`<div class="drawer-head"><h3>Your Bag (${totalItems()})</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div>${rows||`<div class="muted" style="padding:40px 0;text-align:center">Your bag is waiting for its first piece.</div>`}<div class="drawer-foot">${state.cart.length?`<div class="totals"><div><span>Subtotal</span><span>${money(pricing.subtotal)}</span></div><div><span>Offer savings</span><span>−${money(pricing.offerDiscount)}</span></div><div><span>Shipping</span><span>${pricing.shipping?money(pricing.shipping):'FREE'}</span></div><div><span>Total</span><span>${money(pricing.total)}</span></div></div><button class="btn primary" style="width:100%" onclick="closeDrawer();openCheckout()">Proceed to Checkout →</button>`:''}</div>`);
+    openDrawer(`<div class="drawer-head"><h3>Your Bag (${totalItems()})</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div>${rows||`<div class="muted" style="padding:40px 0;text-align:center">Your bag is waiting for its first piece.</div>`}<div class="drawer-foot">${state.cart.length?`<div class="totals"><div><span>Subtotal</span><span>${money(pricing.subtotal)}</span></div><div><span>Offer savings</span><span>−${money(pricing.offerDiscount)}</span></div><div><span>Shipping</span><span>${pricing.shipping?money(pricing.shipping):'FREE'}</span></div><div><span>Total</span><span>${money(pricing.total)}</span></div></div><a class="btn primary" style="width:100%;display:block;text-align:center" href="checkout.html" data-kryven-checkout-link onclick="closeDrawer()">Proceed to Checkout →</a>`:''}</div>`);
     return false;
   }catch(err){console.warn('KRYVEN bag drawer fallback:',err);return true;}
 }
@@ -795,7 +795,7 @@ function productDetail(p){
         <div class="opt-row product-page-colours" id="pageColorOptions">${(p.colors||[]).map((c)=>`<button class="opt ${c===color?'selected':''}" type="button" onclick="selectProductPageColor('${esc(c)}')">${esc(c)}</button>`).join('')}</div>
         <div class="detail-label">SIZE / AVAILABILITY</div>
         <div class="opt-row" id="pageSizeOptions">${Object.entries(p.sizes||{}).map(([sz,on])=>`<button class="opt ${on?(sz===selected?'selected':''):'disabled'}" type="button" ${on?`onclick="selectProductPageSize('${esc(sz)}')"`:'disabled'}>${esc(sz)}${on?'':' · OUT'}</button>`).join('')}</div>
-        <div class="product-actions"><button class="btn primary" type="button" onclick="confirmPageAdd('${esc(p.id)}')">ADD TO BAG →</button><button class="btn" type="button" onclick="buyNowFromPage('${esc(p.id)}')">BUY NOW</button></div>
+        <div class="product-actions"><button class="btn primary" type="button" onclick="confirmPageAdd('${esc(p.id)}')">ADD TO BAG →</button><a class="btn" href="checkout.html" onclick="return confirmPageAdd('${esc(p.id)}')">BUY NOW</a></div>
         <div class="detail-trust"><span>✓ PREMIUM FABRIC</span><span>✓ SECURE CHECKOUT</span><span>✓ TRACKED DELIVERY</span></div>
       </div>
     </div>
@@ -814,7 +814,7 @@ function openProduct(id){location.href=`product.html?id=${encodeURIComponent(id)
 function bagPage(){
   if(!state.cart.length) return `<div class="empty-state bag-empty"><div class="eyebrow">YOUR BAG</div><h2>EMPTY FOR NOW.</h2><p class="muted">The next piece of your era is waiting.</p><a class="btn primary" href="shop.html">EXPLORE COLLECTION →</a></div>`;
   const pricing=getCartPricing('');
-  return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);const q=Math.max(1,Number(x.qty||1));return `<div class="bag-line"><img src="${esc(p.images?.[0]||IMG.tshirt)}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3>${offerBadge(p)}<p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'—')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${q}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(getOfferLinePrice(p,q))}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(pricing.subtotal)}</span></div><div class="summary-row"><span>Offer savings</span><span>−${money(pricing.offerDiscount)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(pricing.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(pricing.total)}</b></div><button class="btn primary" style="width:100%;margin-top:14px" onclick="openCheckout()">PROCEED TO CHECKOUT →</button></aside></div>`;
+  return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);const q=Math.max(1,Number(x.qty||1));return `<div class="bag-line"><img src="${esc(p.images?.[0]||IMG.tshirt)}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3>${offerBadge(p)}<p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'—')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${q}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(getOfferLinePrice(p,q))}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(pricing.subtotal)}</span></div><div class="summary-row"><span>Offer savings</span><span>−${money(pricing.offerDiscount)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(pricing.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(pricing.total)}</b></div><a class="btn primary" style="width:100%;margin-top:14px;display:block;text-align:center" href="checkout.html" data-kryven-checkout-link>PROCEED TO CHECKOUT →</a></aside></div>`;
 }
 function renderPage(){const page=document.body.dataset.page||'home';
   if(page==='home') return `${header()}${hero()}${offersBanner()}${categories()}${shop()}${trust()}${footer()}${drawDrawer()}${drawModal()}`;
@@ -886,7 +886,7 @@ function checkoutMarkup(){
         <div class="checkout-items">${state.cart.map(x=>{const p=product(x.id);const q=Math.max(1,Number(x.qty||1));return `<div class="checkout-item"><img src="${esc(p.images?.[0]||'')}" alt=""><div><b>${esc(p.name)}</b>${offerBadge(p)}<small>${esc(x.color||'Black')} · Size ${esc(x.size||'—')} · Qty ${q}</small></div><strong>${money(getOfferLinePrice(p,q))}</strong></div>`}).join('')}</div>
         <div class="checkout-total-lines"><div><span>Subtotal</span><b id="sumSub">${money(pricing.subtotal)}</b></div><div><span>Offer savings</span><b id="sumOffer">−${money(pricing.offerDiscount)}</b></div><div><span>Coupon discount</span><b id="sumDisc">${money(0)}</b></div><div><span>Shipping</span><b>${pricing.shipping?money(pricing.shipping):'FREE'}</b></div><div class="grand"><span>Total</span><b id="sumTotal">${money(pricing.total)}</b></div></div>
         <div class="cod-split-card"><div><span>COD PAYMENT SPLIT</span><b>${codPct}% now</b></div><div class="cod-amounts"><strong>${money(codAdvance)}</strong><span>now</span><strong>${money(remaining)}</strong><span>after delivery</span></div><small>This split follows the COD percentage set by Admin.</small></div>
-        <button class="btn primary checkout-submit" type="submit" ${state.settings.payments?.cod||state.settings.payments?.upi||state.settings.payments?.card?'':'disabled'}>PLACE ORDER SECURELY →</button>
+        <button class="btn primary checkout-submit" type="submit">PLACE ORDER SECURELY →</button>
         <div class="checkout-secure-note">✓ Admin controls COD / UPI / Card availability<br>✓ Email is optional<br>✓ Landmark is required · House/building number is optional</div>
       </aside>
     </form>
@@ -1012,3 +1012,94 @@ startLiveCatalog();
 setTimeout(()=>showReferralOnce(),700);
 
 window.addEventListener("load",()=>setTimeout(handleCashfreeReturn,300));
+
+(function(){
+  const fallbackProducts = new Map((defaultState.products||[]).map(x=>[String(x.id),x]));
+  const normalize = ()=>{
+    if(!Array.isArray(state.products)) return;
+    state.products = state.products.map(cp=>{
+      const fp=fallbackProducts.get(String(cp?.id));
+      if(!cp || typeof cp!=='object') return cp;
+      const out=Object.assign({}, fp||{}, cp);
+      if(!out.sizes || !Object.keys(out.sizes).length) out.sizes=Object.assign({}, fp?.sizes||{S:true,M:true,L:true,XL:true});
+      if(!Array.isArray(out.colors) || !out.colors.length) out.colors=Array.isArray(fp?.colors)&&fp.colors.length?fp.colors:['Black'];
+      if(!Array.isArray(out.images) || !out.images.length) out.images=Array.isArray(fp?.images)&&fp.images.length?fp.images:[IMG.tshirt];
+      return out;
+    });
+  };
+  normalize();
+  setInterval(normalize, 2500);
+})();
+
+/* =========================
+   KRYVEN ERA — FINAL NAV/CART STABILITY PATCH
+   Keep checkout navigation native and avoid full-page re-render
+   after adding a product. This prevents Buy Now / Proceed buttons
+   from becoming inert when live catalog refreshes or a render occurs.
+   ========================= */
+(function(){
+  const nativeSaveCart=()=>{
+    try{localStorage.setItem(CART_KEY,JSON.stringify(Array.isArray(state.cart)?state.cart:[]));}catch(e){console.warn('KRYVEN cart save failed',e)}
+    try{window.dispatchEvent(new CustomEvent('kryven-cart-updated',{detail:{count:totalItems()}}))}catch{}
+  };
+
+  function setBagBadges(){
+    const count=totalItems();
+    document.querySelectorAll('.bag-btn .badge,.nav-actions .bag-btn .badge').forEach(el=>el.textContent=count||'');
+  }
+
+  function stableAddToBag(id,size,color='Black'){
+    const p=product(id);
+    if(!p){toast('Product is no longer available');return false;}
+    const available=Object.prototype.hasOwnProperty.call(p.sizes||{},size) ? !!p.sizes[size] : false;
+    if(!size||!available){toast('Please select an available size');document.getElementById('pageSizeOptions')?.scrollIntoView({behavior:'smooth',block:'center'});return false;}
+    if(p.colors?.length&&!p.colors.includes(color)) color=p.colors[0];
+    const line=state.cart.find(x=>x.id===id&&x.size===size&&x.color===color);
+    if(line) line.qty=Math.max(1,Number(line.qty||1))+1;
+    else state.cart.push({id,size,color,qty:1});
+    nativeSaveCart();
+    setBagBadges();
+    toast('✓ Added to bag');
+    return true;
+  }
+
+  window.addToBag=stableAddToBag;
+
+  window.confirmPageAdd=function(id){
+    const sel=window.__pageSelected||{};
+    const p=product(id);
+    const size=sel.size||'';
+    const color=sel.color||p?.colors?.[0]||'Black';
+    return stableAddToBag(id,size,color);
+  };
+
+  window.buyNowFromPage=function(id){
+    if(!window.confirmPageAdd(id)) return false;
+    // Use a native navigation instead of a delayed callback/re-render.
+    window.location.assign(new URL('checkout.html',window.location.href).href);
+    return true;
+  };
+
+  window.openCheckout=function(){
+    if(!state.cart.length){toast('Your bag is empty');return false;}
+    window.location.assign(new URL('checkout.html',window.location.href).href);
+    return false;
+  };
+
+  window.proceedToCheckout=window.openCheckout;
+
+  // Replace the bag summary action with a real link where possible.
+  const patchCheckoutLink=()=>{
+    document.querySelectorAll('[data-kryven-checkout-link]').forEach(el=>{
+      if(el.tagName==='A') el.href=new URL('checkout.html',window.location.href).href;
+    });
+  };
+  document.addEventListener('click',e=>{
+    const t=e.target?.closest?.('[data-kryven-checkout-link]');
+    if(!t || !state.cart.length) return;
+    if(t.tagName==='A') return;
+    e.preventDefault();
+    window.openCheckout();
+  },true);
+  setTimeout(patchCheckoutLink,0);
+})();
