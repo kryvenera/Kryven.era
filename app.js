@@ -334,6 +334,17 @@ function bindMobileSearchAutoHide(){
 }
 
 
+async function handleCashfreeReturn(){
+  if(document.body.dataset.page!=='checkout')return;
+  const orderId=new URLSearchParams(location.search).get('order_id');
+  if(!orderId)return;
+  const local=state.orders.find(x=>x.id===orderId);
+  if(local)window.__pendingOrder=local;
+  toast('Verifying payment…');
+  const paid=await verifyCashfreeOrder(orderId);
+  if(!paid){toast('Payment is still being verified. Please wait a moment.');startUPIPaymentPolling(orderId)}
+}
+
 function render(){
   document.getElementById('app').innerHTML=siteBackground()+renderPage();
   if(document.body.dataset.page==='product'){
@@ -611,20 +622,31 @@ async function updateCloudOrder(order){
 async function confirmVerifiedOrder(order){order.status='Placed';order.paymentVerified=true;order.paidAt=new Date().toISOString();await updateCloudOrder(order);applyLocalOrder(order);showPaymentSuccess(order.id,order.payment);return true}
 function cashfreeQrSource(){return state.settings.cashfreeQrImage||state.settings.cashfreeQrUrl||''}
 async function showPaymentGateway(order,payment){
-  const amount=Number(order.advancePaid??order.total??0);
-  const upi=encodeURIComponent(state.settings.upi||'kryvenera@upi');
-  const brand=encodeURIComponent(state.settings.brand||'Kryven Era');
-  const upiLink=`upi://pay?pa=${upi}&pn=${brand}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Kryven Era '+order.id)}`;
-  const customQr=cashfreeQrSource();
-  openModal(`<div class="phonepe-checkout premium-pay-modal"><div class="upi-head"><div><span class="eyebrow">SECURE PAYMENT</span><h2>${payment==='cod'?'COD ADVANCE PAYMENT':'COMPLETE PAYMENT'}</h2></div><button class="drawer-close" onclick="closeModal()">×</button></div><div class="upi-card"><div class="upi-brand">${payment==='cod'?(customQr?'CASHFREE QR':'COD / UPI QR'):'UPI'}</div><div class="upi-amount">${money(amount)}</div><div class="upi-id">Order: <b>${esc(order.id)}</b></div><div id="upiQr" class="secure-qr-box">${customQr?`<img src="${esc(customQr)}" alt="Payment QR">`:'Loading QR…'}</div>${customQr?'':'<a class="btn upi-pay" href="'+upiLink+'">OPEN PAYMENT APP →</a>'}<div class="payment-warning">Do not treat a screenshot as payment proof. The order is confirmed only after the payment verification endpoint reports <b>paid = true</b>.</div><div id="upiStatus" class="muted" style="font-size:12px;margin-top:10px;text-align:center">Waiting for secure payment verification…</div></div></div>`);
-  window.__pendingOrder=order;
-  if(!customQr)renderUPIQR(upiLink);
-  startUPIPaymentPolling(order.id);
+  try{
+    const res=await fetch('/api/create-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      orderId:order.id, amount:Number(order.total||0), customer:{id:order.customerId||getCustomerId(),name:order.customer?.name||'',email:order.customer?.email||'',phone:order.customer?.phone||''}
+    })});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok||!data.payment_session_id){throw new Error(data.message||'Unable to start Cashfree checkout')}
+    window.__pendingOrder=order;
+    if(typeof Cashfree!=='function')throw new Error('Cashfree Checkout SDK did not load. Please refresh and try again.');
+    const cashfree=Cashfree({mode:data.mode||'production'});
+    await cashfree.checkout({paymentSessionId:data.payment_session_id,redirectTarget:'_self'});
+  }catch(e){console.error(e);toast(e.message||'Payment checkout could not be started');}
 }
-async function finalizeOrder(order,verifiedAlready=false){if(!await validateCartForOrder())return false;if(verifiedAlready)return confirmVerifiedOrder(order);return savePendingOrder(order)}
 function showUPIPayment(order){return showPaymentGateway(order,order.payment||'upi')}
-function startUPIPaymentPolling(orderId){clearInterval(window.__upiPoll);const endpoint=window.KRYVEN_UPI_VERIFY_ENDPOINT||state.settings.paymentVerifyEndpoint||'/api/upi/verify';let attempts=0;window.__upiPoll=setInterval(async()=>{attempts++;if(attempts>120){clearInterval(window.__upiPoll);return}try{const res=await fetch(`${endpoint}?orderId=${encodeURIComponent(orderId)}`,{cache:'no-store'});if(!res.ok)return;const data=await res.json();if(data?.paid===true){clearInterval(window.__upiPoll);const o=window.__pendingOrder;if(o&&o.id===orderId){await confirmVerifiedOrder(o);window.__pendingOrder=null}}}catch{}},3000)}
-function playSuccess(){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const c=new C();const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(660,c.currentTime);o.frequency.exponentialRampToValueAtTime(990,c.currentTime+.18);g.gain.setValueAtTime(.0001,c.currentTime);g.gain.exponentialRampToValueAtTime(.2,c.currentTime+.03);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.55);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.55)}catch{}}
+async function verifyCashfreeOrder(orderId){
+  try{
+    const res=await fetch(`/api/status?orderId=${encodeURIComponent(orderId)}`,{cache:'no-store'});
+    const data=await res.json().catch(()=>({}));
+    if(data?.paid===true){
+      const o=window.__pendingOrder || state.orders.find(x=>x.id===orderId) || await fetchCloudOrderById(orderId);
+      if(o){await confirmVerifiedOrder(o);window.__pendingOrder=null;return true}
+    }
+  }catch(e){console.warn('Cashfree status check failed',e)}
+  return false;
+}
+function startUPIPaymentPolling(orderId){clearInterval(window.__upiPoll);let attempts=0;window.__upiPoll=setInterval(async()=>{attempts++;if(await verifyCashfreeOrder(orderId)||attempts>40)clearInterval(window.__upiPoll)},3000)}
 function showPaymentSuccess(id,payment){closeModal();const box=document.createElement('div');box.className='payment-success-toast';box.innerHTML=`<div class="success-icon">✓</div><div><strong>Payment successful</strong><span>Order ${esc(id)} confirmed${payment==='upi'?' · UPI paid':''}</span></div>`;document.body.appendChild(box);setTimeout(()=>{box.classList.add('hide');setTimeout(()=>box.remove(),500)},4200);setTimeout(()=>render(),450)}
 function openReviewForm(pid){const delivered=state.orders.some(o=>o.status==='Delivered'&&o.items.some(i=>i.id===pid)); if(!delivered){toast('Reviews unlock after your order is marked Delivered');return} openModal(`<div class="modal-top"><div><div class="eyebrow">Customer review</div><h3 style="margin:0;font-family:'Playfair Display',Georgia,serif">Review this product</h3></div><button class="drawer-close" onclick="closeModal()">×</button></div><div style="padding:20px"><div class="form-grid"><div class="field"><label>Your name</label><input id="rvName" value="${esc(state.profile.name)}"></div><div class="field"><label>Rating</label><select id="rvRating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div><div class="field" style="grid-column:1/-1"><label>Review</label><textarea id="rvText" placeholder="Tell us about fit, quality and feel..."></textarea></div><div class="field" style="grid-column:1/-1"><label>Customer photos</label><input id="rvFiles" type="file" accept="image/*" multiple></div></div><button class="btn primary" style="margin-top:15px" onclick="submitReview('${pid}')">Post review</button></div>`)}
 window.openReviewForm=openReviewForm;
@@ -894,6 +916,17 @@ window.placeOrder=async()=>{
 function cryptoSafeOrderRandom(){try{const a=new Uint32Array(1);crypto.getRandomValues(a);return String(100+Number(a[0]%900))}catch{return String(100+Math.floor(Math.random()*900))}}
 window.openProduct=(id)=>{if(id)location.href='product.html?id='+encodeURIComponent(id)};
 
+async function handleCashfreeReturn(){
+  if(document.body.dataset.page!=='checkout')return;
+  const orderId=new URLSearchParams(location.search).get('order_id');
+  if(!orderId)return;
+  const local=state.orders.find(x=>x.id===orderId);
+  if(local)window.__pendingOrder=local;
+  toast('Verifying payment…');
+  const paid=await verifyCashfreeOrder(orderId);
+  if(!paid){toast('Payment is still being verified. Please wait a moment.');startUPIPaymentPolling(orderId)}
+}
+
 function render(){
   document.getElementById('app').innerHTML=siteBackground()+renderPage();
   if(document.body.dataset.page==='product'){
@@ -919,3 +952,5 @@ window.addEventListener('kryven-cart-updated',()=>{
 
 startLiveCatalog();
 setTimeout(()=>showReferralOnce(),700);
+
+setTimeout(handleCashfreeReturn,300);
