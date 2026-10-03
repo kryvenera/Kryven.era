@@ -42,20 +42,10 @@ const defaultState = {
 
 const KEY='kryven-era-state-v3';
 const CART_KEY='kryven-era-cart-v2';
-const CUSTOMER_PROFILE_KEY='kryven-era-customer-profile-v1';
 const DEFAULT_HERO_VIDEO='kryven-era-hero-temp.mp4';
 function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||structuredClone(defaultState)}catch{return structuredClone(defaultState)}}
 function loadCart(){try{const raw=localStorage.getItem(CART_KEY);if(raw===null)return null;const parsed=JSON.parse(raw);return Array.isArray(parsed)?parsed:[];}catch{return null}}
-function loadCustomerProfile(){
-  try{
-    const raw=localStorage.getItem(CUSTOMER_PROFILE_KEY);
-    if(!raw)return null;
-    const parsed=JSON.parse(raw);
-    return parsed&&typeof parsed==='object'?parsed:null;
-  }catch{return null}
-}
 let state=loadState();
-const persistedCustomerProfile=loadCustomerProfile();
 
 const CATEGORY_DEFAULTS = ['T-Shirts','Hoodies','Pants','Jackets','Accessories'];
 const OFFER_DEFAULTS = {
@@ -142,7 +132,7 @@ function hydrateState(){
   const storedCart=loadCart();
   state.cart=storedCart!==null?storedCart:(Array.isArray(state.cart)?state.cart:[]);
   if(storedCart===null){try{localStorage.setItem(CART_KEY,JSON.stringify(state.cart))}catch{}}
-  state.profile=Object.assign({customerId:''},state.profile||{},persistedCustomerProfile||{});
+  state.profile=Object.assign({customerId:''},state.profile||{});
   state.orders=Array.isArray(state.orders)?state.orders:[];
   state.products=Array.isArray(state.products)?state.products:[];
   ensureVariantVisuals();
@@ -151,7 +141,6 @@ hydrateState();
 ensureMerchandisingSettings(state.settings);
 function save(){
   try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){console.warn('KRYVEN local state save failed',e)}
-  try{localStorage.setItem(CUSTOMER_PROFILE_KEY,JSON.stringify(state.profile||{}));}catch(e){console.warn('KRYVEN customer profile save failed',e)}
   try{localStorage.setItem(CART_KEY,JSON.stringify(Array.isArray(state.cart)?state.cart:[]));}catch(e){console.warn('KRYVEN cart save failed',e)}
   try{window.dispatchEvent(new CustomEvent('kryven-cart-updated',{detail:{count:totalItems()}}))}catch{}
 }
@@ -188,15 +177,11 @@ async function loadLiveCatalog(){
   }catch(e){console.warn('KRYVEN live catalog unavailable',e);return false}
 }
 async function startLiveCatalog(){
-  // Render immediately. Never rebuild forms while the customer is interacting with checkout/customer details.
+  // Render immediately so product, bag and checkout pages never wait on the catalog API.
   render();
-  const safeToRerender=()=>!['checkout','customer'].includes(document.body.dataset.page);
   const loaded=await loadLiveCatalog();
-  if(loaded&&safeToRerender())render();
-  setInterval(async()=>{
-    const changed=await loadLiveCatalog();
-    if(changed&&safeToRerender())render();
-  },10000);
+  if(loaded)render();
+  setInterval(async()=>{if(await loadLiveCatalog())render()},10000);
 }
 function money(n){return `${state.settings.currency}${Number(n).toLocaleString('en-IN')}`}
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
@@ -557,7 +542,7 @@ window.trackOrder=async()=>{const key=(document.getElementById('trackId')?.value
 function openSupport(e){e?.preventDefault();openDrawer(`<div class="drawer-head"><h3>Help & Care</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="form-section" style="margin-top:15px"><h4>Need help?</h4><p class="muted">${esc(state.settings.supportText)}</p><a class="btn success" href="https://wa.me/${esc(state.settings.whatsapp)}?text=${encodeURIComponent('Hello Kryven Era, I need help with my order.') }" target="_blank" style="display:inline-block;margin-top:8px">Chat on WhatsApp</a><p class="muted" style="margin-top:16px">Support number: +${esc(state.settings.whatsapp)}</p></div>`)}
 window.openSupport=openSupport;
 
-function openCheckout(){if(!state.cart.length){toast('Your bag is empty');return false}try{localStorage.setItem(CART_KEY,JSON.stringify(state.cart));localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}location.href='checkout.html?source=bag';return false}
+function openCheckout(){if(!state.cart.length){toast('Your bag is empty');return}location.assign(new URL('checkout.html',location.href).href)}
 window.applyCheckoutCoupon=()=>{const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0),d=discountAmount(sub,getDiscountCode());document.getElementById('couponMsg').textContent=d?'Coupon KRYVEN10 applied.': 'Use KRYVEN10 for 10% off in this demo.';document.getElementById('sumDisc').textContent='−'+money(d);document.getElementById('sumTotal').textContent=money(sub-d+state.settings.shipping)}
 window.placeOrder=async()=>{
   if(window.__orderSubmitting)return;
@@ -707,10 +692,7 @@ function searchPage(){const q=new URLSearchParams(location.search).get('q')||'';
 window.render=render; window.openModal=openModal; window.closeModal=closeModal; window.closeDrawer=closeDrawer; window.search=search; window.imgFallback=imgFallback; window.openProfile=openProfile; window.openCheckout=openCheckout; window.toggleWishlist=toggleWishlist; window.openCategory=openCategory;
 
 
-function showReferralOnce(){
-  if(['checkout','customer'].includes(document.body.dataset.page))return;
-  if(localStorage.getItem('kryven-era-referral-seen')==='1')return;
-  setTimeout(()=>openModal(`<div class="modal-top"><div><div class="eyebrow">Welcome to KRYVEN ERA</div><h3 style="margin:0;font-family:'Playfair Display',Georgia,serif">How did you find us?</h3></div></div><div style="padding:22px"><p class="muted" style="margin-top:0">Choose once. We won't ask again at checkout.</p><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"><button class="btn" onclick="chooseReferral('Google')">Google</button><button class="btn" onclick="chooseReferral('Facebook')">Facebook</button><button class="btn" onclick="chooseReferral('Instagram')">Instagram</button><button class="btn" onclick="chooseReferral('YouTube')">YouTube</button></div></div>`),200)}
+function showReferralOnce(){if(localStorage.getItem('kryven-era-referral-seen')==='1')return;setTimeout(()=>openModal(`<div class="modal-top"><div><div class="eyebrow">Welcome to KRYVEN ERA</div><h3 style="margin:0;font-family:'Playfair Display',Georgia,serif">How did you find us?</h3></div></div><div style="padding:22px"><p class="muted" style="margin-top:0">Choose once. We won't ask again at checkout.</p><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"><button class="btn" onclick="chooseReferral('Google')">Google</button><button class="btn" onclick="chooseReferral('Facebook')">Facebook</button><button class="btn" onclick="chooseReferral('Instagram')">Instagram</button><button class="btn" onclick="chooseReferral('YouTube')">YouTube</button></div></div>`),200)}
 window.chooseReferral=(source)=>{localStorage.setItem('kryven-era-referral-source',source);localStorage.setItem('kryven-era-referral-seen','1');closeModal();toast(`${source} selected`)};
 
 
@@ -813,7 +795,7 @@ function productDetail(p){
         <div class="opt-row product-page-colours" id="pageColorOptions">${(p.colors||[]).map((c)=>`<button class="opt ${c===color?'selected':''}" type="button" onclick="selectProductPageColor('${esc(c)}')">${esc(c)}</button>`).join('')}</div>
         <div class="detail-label">SIZE / AVAILABILITY</div>
         <div class="opt-row" id="pageSizeOptions">${Object.entries(p.sizes||{}).map(([sz,on])=>`<button class="opt ${on?(sz===selected?'selected':''):'disabled'}" type="button" ${on?`onclick="selectProductPageSize('${esc(sz)}')"`:'disabled'}>${esc(sz)}${on?'':' · OUT'}</button>`).join('')}</div>
-        <div class="product-actions"><button class="btn primary" type="button" onclick="confirmPageAdd('${esc(p.id)}')">ADD TO BAG →</button><button class="btn" type="button" onclick="buyNowFromPage('${esc(p.id)}')">BUY NOW</button></div>
+        <div class="product-actions"><button class="btn primary" type="button" onclick="confirmPageAdd('${esc(p.id)}')">ADD TO BAG →</button><a class="btn" href="checkout.html" onclick="return confirmPageAdd('${esc(p.id)}')">BUY NOW</a></div>
         <div class="detail-trust"><span>✓ PREMIUM FABRIC</span><span>✓ SECURE CHECKOUT</span><span>✓ TRACKED DELIVERY</span></div>
       </div>
     </div>
@@ -855,9 +837,7 @@ function renderPage(){const page=document.body.dataset.page||'home';
    Keeps existing store/catalog/tracking/Admin contracts intact.
    ========================= */
 function checkoutCustomerFields(){
-  const dedicated=loadCustomerProfile()||{};
-  const p=Object.assign({name:'',phone:'',email:'',address:'',landmark:'',houseNumber:'',city:'',state:'',pincode:''},state.profile||{},dedicated);
-  state.profile=Object.assign({},state.profile||{},dedicated);
+  const p=Object.assign({name:'',phone:'',email:'',address:'',landmark:'',houseNumber:'',city:'',state:'',pincode:''},state.profile||{});
   return `<div class="checkout-fields-grid">
     <div class="checkout-field full"><label>FULL NAME <span class="required-mark">*</span></label><input id="coName" autocomplete="name" value="${esc(p.name)}" placeholder="Enter your full name"></div>
     <div class="checkout-field"><label>MOBILE NUMBER <span class="required-mark">*</span></label><input id="coPhone" inputmode="tel" autocomplete="tel" value="${esc(p.phone)}" placeholder="10-digit mobile number"></div>
@@ -872,22 +852,19 @@ function checkoutCustomerFields(){
 }
 function checkoutPaymentMethods(){
   const pay=state.settings.payments||{};
-  const last=localStorage.getItem('kryven-era-last-payment-method')||'cashfree';
   const methods=[
     {key:'cod',title:'Cash on Delivery',sub:`${Number(pay.codAdvancePercent??20)}% now · ${Math.max(0,100-Number(pay.codAdvancePercent??20))}% after delivery`,icon:'COD',enabled:!!pay.cod},
     {key:'cashfree',title:'Online Payment · Cashfree',sub:'UPI · Card · Net Banking',icon:'PAY',enabled:true},
   ];
   const enabled=methods.filter(m=>m.enabled);
-  const fallback=enabled[0]?.key||'';
-  const selected=enabled.some(m=>m.key===last)?last:fallback;
   return `<div class="checkout-payments" data-enabled-count="${enabled.length}">${methods.map((m)=>{
     return `<label class="checkout-payment ${m.enabled?'is-enabled':'is-disabled'}">
       <span class="payment-icon">${m.icon}</span><span class="payment-copy"><b>${esc(m.title)}</b><small>${esc(m.sub)}</small></span>
-      <input name="pay" type="radio" value="${m.key}" ${m.enabled&&m.key===selected?'checked':''} ${m.enabled?'':'disabled'}>
+      <input name="pay" type="radio" value="${m.key}" ${m.enabled&&m.key==='cashfree'?'checked':''} ${m.enabled?'':'disabled'}>
       <span class="payment-status">${m.enabled?'ENABLED':'DISABLED'}</span>
     </label>`;
   }).join('')}
-  <div class="checkout-payment-note">Online payments open in Cashfree's secure checkout. COD and online payment use the same saved customer details.</div>
+  <div class="checkout-payment-note">Online payments open in Cashfree's secure checkout. COD remains separate.</div>
   </div>`;
 }
 function checkoutMarkup(){
@@ -918,40 +895,16 @@ function checkoutMarkup(){
 function clearCheckoutError(id){const el=document.getElementById(id);if(!el)return;el.classList.remove('field-invalid');const msg=el.parentElement?.querySelector('.checkout-field-error');if(msg)msg.remove()}
 function setCheckoutError(id,msg){const el=document.getElementById(id);if(!el)return;el.classList.add('field-invalid');const wrap=el.parentElement;if(wrap&&!wrap.querySelector('.checkout-field-error')){const e=document.createElement('div');e.className='checkout-field-error';e.textContent=msg;wrap.appendChild(e)}}
 function persistCheckoutDraft(){
-  const p={
-    ...state.profile,
-    customerId:getCustomerId(),
-    name:document.getElementById('coName')?.value.trim()||state.profile.name||'',
-    phone:document.getElementById('coPhone')?.value.trim()||state.profile.phone||'',
-    email:document.getElementById('coEmail')?.value.trim()||state.profile.email||'',
-    address:document.getElementById('coAddress')?.value.trim()||state.profile.address||'',
-    landmark:document.getElementById('coLandmark')?.value.trim()||state.profile.landmark||'',
-    houseNumber:document.getElementById('coHouse')?.value.trim()||state.profile.houseNumber||'',
-    city:document.getElementById('coCity')?.value.trim()||state.profile.city||'',
-    state:document.getElementById('coState')?.value.trim()||state.profile.state||'',
-    pincode:document.getElementById('coPin')?.value.trim()||state.profile.pincode||''
-  };
-  state.profile=p;
-  try{localStorage.setItem(CUSTOMER_PROFILE_KEY,JSON.stringify(p))}catch(e){}
-  try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}
-  return p;
+  const p={...state.profile,customerId:getCustomerId(),name:document.getElementById('coName')?.value.trim()||state.profile.name||'',phone:document.getElementById('coPhone')?.value.trim()||state.profile.phone||'',email:document.getElementById('coEmail')?.value.trim()||state.profile.email||'',address:document.getElementById('coAddress')?.value.trim()||state.profile.address||'',landmark:document.getElementById('coLandmark')?.value.trim()||state.profile.landmark||'',houseNumber:document.getElementById('coHouse')?.value.trim()||state.profile.houseNumber||'',city:document.getElementById('coCity')?.value.trim()||state.profile.city||'',state:document.getElementById('coState')?.value.trim()||state.profile.state||'',pincode:document.getElementById('coPin')?.value.trim()||state.profile.pincode||''};
+  state.profile=p; save(); return p;
 }
-
 function bindCheckoutDraftSaving(){
   if(document.body.dataset.page!=='checkout' || document.body.dataset.checkoutDraftBound==='1')return;
   document.body.dataset.checkoutDraftBound='1';
   ['coName','coPhone','coEmail','coAddress','coLandmark','coHouse','coCity','coState','coPin'].forEach(id=>{
     const el=document.getElementById(id);
-    if(!el)return;
-    const keep=()=>persistCheckoutDraft();
-    el.addEventListener('input',keep);
-    el.addEventListener('change',keep);
-    el.addEventListener('blur',keep);
+    el?.addEventListener('input',()=>persistCheckoutDraft());
   });
-  document.querySelectorAll('input[name="pay"]').forEach(el=>el.addEventListener('change',()=>{
-    persistCheckoutDraft();
-    try{localStorage.setItem('kryven-era-last-payment-method',el.value)}catch(e){}
-  }));
 }
 function validateCheckoutForm(){
   persistCheckoutDraft();
@@ -1121,23 +1074,15 @@ window.addEventListener("load",()=>setTimeout(handleCashfreeReturn,300));
   };
 
   window.buyNowFromPage=function(id){
-    const ok=window.confirmPageAdd(id);
-    if(!ok)return false;
-    try{
-      localStorage.setItem(CART_KEY,JSON.stringify(state.cart));
-      localStorage.setItem(KEY,JSON.stringify(state));
-    }catch(e){}
-    window.location.href='checkout.html?source=buy-now';
-    return false;
+    if(!window.confirmPageAdd(id)) return false;
+    // Use a native navigation instead of a delayed callback/re-render.
+    window.location.assign(new URL('checkout.html',window.location.href).href);
+    return true;
   };
 
   window.openCheckout=function(){
-    if(!Array.isArray(state.cart)||!state.cart.length){toast('Your bag is empty');return false;}
-    try{
-      localStorage.setItem(CART_KEY,JSON.stringify(state.cart));
-      localStorage.setItem(KEY,JSON.stringify(state));
-    }catch(e){}
-    window.location.href='checkout.html?source=bag';
+    if(!state.cart.length){toast('Your bag is empty');return false;}
+    window.location.assign(new URL('checkout.html',window.location.href).href);
     return false;
   };
 

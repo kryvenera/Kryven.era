@@ -1,1 +1,4 @@
-Upload the CONTENTS of this folder to the GitHub repository root. Keep exactly one api/ folder at the same level as account.html, admin.html, bag.html, checkout.html, etc.
+Upload the CONTENTS of this folder to the ROOT of the GitHub repository.
+Do not create another nested KRYVEN-ERA folder.
+Keep api/ at the same level as account.html, admin.html, app.js, checkout.html, etc.
+For working Cashfree payments, deploy the same repo through Vercel and keep the Cashfree secret only in Vercel Environment Variables.

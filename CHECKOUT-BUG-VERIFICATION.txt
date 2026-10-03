@@ -1,0 +1,27 @@
+KRYVEN ERA — CHECKOUT BUG FIX VERIFICATION
+
+Primary root cause found:
+- checkout.html loaded the Cashfree SDK as a blocking <script> before app.js.
+- If the external Cashfree SDK was slow/blocked, app.js never initialized, leaving the checkout page blank.
+
+Fix applied:
+- Removed the blocking Cashfree SDK <script> from checkout.html.
+- Cashfree is now loaded lazily only when the customer presses the final online-payment button.
+- Checkout UI can therefore render independently of Cashfree SDK/network availability.
+- Cache-busting version updated on checkout assets.
+
+Static checks performed:
+- app.js syntax: PASS
+- kryven-upgrade.js syntax: PASS
+- live-sync.js syntax: PASS
+- api/create-order.js syntax: PASS
+- api/status.js syntax: PASS
+- api/webhook.js syntax: PASS
+- checkout.html references app.js with defer: PASS
+- checkout.html has no blocking Cashfree SDK script: PASS
+- api folder is at repository root: PASS
+- checkout.html is at repository root: PASS
+
+Expected flow:
+Product -> choose available size -> BUY NOW -> checkout.html opens -> saved customer details are prefilled -> choose COD/Cashfree -> place order.
+Bag -> PROCEED TO CHECKOUT -> checkout.html opens.
