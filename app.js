@@ -590,7 +590,11 @@ async function handleCashfreeReturn(){
   history.replaceState({},document.title,'checkout.html');
 }
 
-async function saveOrderToSupabase(order){
+const PENDING_SYNC_KEY='kryven-era-pending-cloud-orders-v1';
+function readPendingCloudOrders(){try{const x=JSON.parse(localStorage.getItem(PENDING_SYNC_KEY)||'[]');return Array.isArray(x)?x:[]}catch{return []}}
+function writePendingCloudOrders(list){try{localStorage.setItem(PENDING_SYNC_KEY,JSON.stringify(list.slice(-25)))}catch{}}
+function queueCloudOrder(order){const list=readPendingCloudOrders().filter(x=>x&&x.id!==order.id);list.push(order);writePendingCloudOrders(list)}
+async function saveOrderToSupabase(order,{silent=false,queueOnFail=true}={}){
   try{
     const dbId=Number(`${Date.now()}${String(Math.floor(Math.random()*1000)).padStart(3,'0')}`);
     order.cloudRowId=dbId;
@@ -607,9 +611,20 @@ async function saveOrderToSupabase(order){
     return true;
   }catch(error){
     console.error('SUPABASE ORDER ERROR:',error);
-    toast(`Order save failed: ${error.message||'Supabase error'}`);
+    if(queueOnFail)queueCloudOrder(order);
+    if(!silent)toast('Order placed. Cloud sync will retry automatically.');
     return false;
   }
+}
+async function syncPendingCloudOrders(){
+  const pending=readPendingCloudOrders();
+  if(!pending.length)return;
+  const remaining=[];
+  for(const order of pending){
+    const ok=await saveOrderToSupabase(order,{silent:true,queueOnFail:false});
+    if(!ok)remaining.push(order);
+  }
+  writePendingCloudOrders(remaining);
 }
 function applyLocalOrder(order){
   state.orders.unshift(order);
@@ -630,7 +645,16 @@ async function validateCartForOrder(){
   return true;
 }
 async function savePendingOrder(order){order.status='Awaiting Payment Verification';order.paymentVerified=false;return saveOrderToSupabase(order)}
-async function savePlacedCODOrder(order){order.status='Placed';order.paymentVerified=false;order.placedAt=new Date().toISOString();const ok=await saveOrderToSupabase(order);if(ok)applyLocalOrder(order);return ok}
+async function savePlacedCODOrder(order){
+  order.status='Placed';
+  order.paymentVerified=false;
+  order.placedAt=new Date().toISOString();
+  // Place the order locally first so a Supabase/RLS/network problem cannot block checkout.
+  applyLocalOrder(order);
+  const cloudOk=await saveOrderToSupabase(order,{silent:true,queueOnFail:true});
+  if(!cloudOk) toast('Order placed successfully. We will sync it automatically.');
+  return true;
+}
 async function updateCloudOrder(order){
   try{
     if(!order?.cloudRowId)return true;
@@ -954,7 +978,7 @@ window.placeOrder=async()=>{
     order.payment='cashfree';
     // Keep local order data and continue to Cashfree even if a temporary database/RLS issue occurs.
     const saved=await savePendingOrder(order);
-    if(!saved)toast('Order draft could not sync right now. Continuing to secure payment…');
+    if(!saved)toast('Order draft saved locally. Continuing to secure payment…');
     localStorage.setItem('kryven-cashfree-pending-order',JSON.stringify(order));
     const r=await fetch('/api/create-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:order.id,order_amount:order.total,customer:{customer_id:order.customer.customerId||order.customer.id||order.id,customer_name:name,customer_email:email,customer_phone:phone}})});
     const data=await r.json().catch(()=>({}));
@@ -1010,6 +1034,7 @@ window.addEventListener('kryven-cart-updated',()=>{
 
 startLiveCatalog();
 setTimeout(()=>showReferralOnce(),700);
+setTimeout(()=>syncPendingCloudOrders(),1800);
 
 window.addEventListener("load",()=>setTimeout(handleCashfreeReturn,300));
 
