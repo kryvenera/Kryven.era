@@ -1,4 +1,32 @@
-Upload the CONTENTS of this folder to the ROOT of the GitHub repository.
-Do not create another nested KRYVEN-ERA folder.
-Keep api/ at the same level as account.html, admin.html, app.js, checkout.html, etc.
-For working Cashfree payments, deploy the same repo through Vercel and keep the Cashfree secret only in Vercel Environment Variables.
+KRYVEN ERA — GitHub upload structure
+
+IMPORTANT:
+1. Extract this ZIP first.
+2. Upload the CONTENTS of the extracted folder to the ROOT of your GitHub repository.
+3. Do NOT upload the ZIP file itself as the website source.
+4. Do NOT create a nested KRYVEN-ERA or website folder inside the repo.
+5. Keep api/ directly beside index.html, checkout.html, app.js, etc.
+
+Required API files:
+api/create-order.js
+api/status.js
+api/webhook.js
+api/health.js
+
+Vercel should be connected to this GitHub repository.
+After deployment, test:
+https://YOUR-DOMAIN.vercel.app/api/health
+
+A successful result is:
+{"ok":true,"service":"kryven-era-api"}
+
+Then test the Cashfree route in the browser:
+https://YOUR-DOMAIN.vercel.app/api/create-order
+
+A GET request should return HTTP 405 / "Method not allowed". That means the function exists. The payment page uses POST for the real order creation.
+
+Keep these Vercel Environment Variables:
+CASHFREE_CLIENT_ID
+CASHFREE_CLIENT_SECRET
+CASHFREE_ENV=production
+CASHFREE_API_VERSION=2025-01-01
