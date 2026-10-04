@@ -9,7 +9,7 @@ export default async function handler(req,res){
     const env=String(process.env.CASHFREE_ENV||'production').toLowerCase()==='sandbox'?'sandbox':'production';
     const baseUrl=env==='sandbox'?'https://sandbox.cashfree.com':'https://api.cashfree.com';
     const apiVersion=process.env.CASHFREE_API_VERSION||'2025-01-01';
-    const r=await fetch(`${baseUrl}/pg/orders/${encodeURIComponent(orderId)}/payments`,{headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':apiVersion,Accept:'application/json'}});
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),8000);const r=await fetch(`${baseUrl}/pg/orders/${encodeURIComponent(orderId)}/payments`,{headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':apiVersion,Accept:'application/json'},signal:controller.signal});clearTimeout(timer);
     const data=await r.json().catch(()=>[]);
     if(!r.ok)return res.status(r.status).json({error:data?.message||'Unable to fetch payment status',details:data});
     const payments=Array.isArray(data)?data:[];

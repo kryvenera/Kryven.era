@@ -34,7 +34,7 @@ export default async function handler(req,res){
     };
     let r,data,raw='';
     try{
-      r=await fetch(`${baseUrl}/pg/orders`,{method:'POST',headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':apiVersion,Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),8000);r=await fetch(`${baseUrl}/pg/orders`,{method:'POST',headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':apiVersion,Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});clearTimeout(timer);
       raw=await r.text();
       try{data=JSON.parse(raw)}catch{data={raw:raw.slice(0,1000)}}
     }catch(fetchErr){
