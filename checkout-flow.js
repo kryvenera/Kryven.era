@@ -62,18 +62,35 @@ function checkoutHTML(){
   </div><aside class="checkout-summary"><div class="kicker">ORDER SUMMARY</div><h2 style="margin:8px 0 4px;font:700 28px 'Playfair Display',serif">Ready for checkout.</h2>${cart.map(x=>{const pr=product(x.id),q=Math.max(1,Number(x.qty||1));return `<div class="checkout-item"><img src="${esc(pr?.images?.[0]||'')}" alt=""><div><b>${esc(pr?.name||x.id)}</b><small>${esc(x.color||'Black')} · Size ${esc(x.size||'—')} · Qty ${q}</small></div><strong>${money(linePrice(pr,q))}</strong></div>`}).join('')}<div class="checkout-lines"><div class="checkout-line"><span>Subtotal</span><b>${money(p.subtotal)}</b></div><div class="checkout-line"><span>Offer savings</span><b>−${money(p.discount)}</b></div><div class="checkout-line"><span>Shipping</span><b>${p.shipping?money(p.shipping):'FREE'}</b></div><div class="checkout-line total"><span>Total</span><b>${money(p.total)}</b></div></div><div class="muted" style="font-size:9px;line-height:1.6;margin-top:12px">Online payments are handled on the separate Cashfree payment page. Your secret key never goes into this page.</div></aside></div></main>`;
 }
 
-function bindCheckout(){for(const id of ['coName','coPhone','coEmail','coAddress','coLandmark','coHouse','coCity','coState','coPin'])document.getElementById(id)?.addEventListener('input',()=>saveDraft(true));const goOnline=()=>{
-  if(!validate())return;
-  let order=buildOrder('cashfree');
-  order=rebuildPaymentOrder(order)||order;
-  if(!Array.isArray(order.items)||!order.items.length||!(Number(order.total)>0)){
+function bindCheckout(){
+  for(const id of ['coName','coPhone','coEmail','coAddress','coLandmark','coHouse','coCity','coState','coPin'])document.getElementById(id)?.addEventListener('input',()=>saveDraft(true));
+  const goOnline=async()=>{
+    if(!validate())return;
     const box=document.getElementById('checkoutError');
-    if(box){box.textContent=`Unable to calculate the order total. Items found: ${Array.isArray(order?.items)?order.items.length:0}. Please refresh the checkout once and try again.`;box.className='checkout-error show';}
-    return;
-  }
-  localStorage.setItem('kryven-cashfree-pending-order',JSON.stringify(order));
-  location.href='payment.html';
-};const placeCod=async()=>{if(!validate())return;const order=buildOrder('cod');localStorage.setItem('kryven-last-order',JSON.stringify(order));state.orders=[order,...state.orders];state.cart=[];saveState();document.getElementById('checkoutApp').innerHTML=`<header class="header"><div class="container nav"><a class="logo premium-logo" href="index.html" aria-label="KRYVEN ERA home"><img class="logo-image" src="logo-primary.png" alt="KRYVEN ERA logo"></a></div></header><main class="container" style="padding:70px 0"><div class="checkout-panel" style="max-width:720px;margin:auto;text-align:center"><div class="eyebrow">ORDER CONFIRMED</div><h1 style="font:700 48px 'Playfair Display',serif;margin:12px 0">Thank you.</h1><p class="muted">Your COD order <b>${esc(order.id)}</b> has been placed with your saved customer details.</p><a class="btn primary" href="tracking.html" style="margin-top:18px">TRACK ORDER →</a></div></main>`;cloudSave(order).catch(()=>{});};document.getElementById('confirmOrderBtn')?.addEventListener('click',()=>{const selected=document.querySelector('input[name="paymentChoice"]:checked')?.value;if(selected==='online')goOnline();else placeCod();});}
+    let order=buildOrder('cashfree');
+    order=rebuildPaymentOrder(order)||order;
+    if(!Array.isArray(order.items)||!order.items.length||!(Number(order.total)>0)){
+      if(box){box.textContent=`Unable to calculate the order total. Items found: ${Array.isArray(order?.items)?order.items.length:0}. Please refresh the checkout once and try again.`;box.className='checkout-error show';}
+      return;
+    }
+    if(box){box.className='checkout-error';box.textContent='';}
+    const btn=document.getElementById('confirmOrderBtn');
+    if(btn){btn.disabled=true;btn.textContent='SAVING ORDER SECURELY…';}
+    try{
+      // Save the exact order snapshot before opening Cashfree. This lets the server-side
+      // verifier/webhook convert it from Awaiting Payment Verification -> Placed.
+      const saved=await cloudSave(order);
+      if(!saved) throw new Error('Could not save the order securely. Please try again before making payment.');
+      localStorage.setItem('kryven-cashfree-pending-order',JSON.stringify(order));
+      location.href='payment.html';
+    }catch(e){
+      if(box){box.textContent=e?.message||'Could not prepare the online payment order.';box.className='checkout-error show';}
+      if(btn){btn.disabled=false;btn.textContent='CONFIRM ORDER →';}
+    }
+  };
+  const placeCod=async()=>{if(!validate())return;const order=buildOrder('cod');localStorage.setItem('kryven-last-order',JSON.stringify(order));state.orders=[order,...state.orders];state.cart=[];saveState();document.getElementById('checkoutApp').innerHTML=`<header class="header"><div class="container nav"><a class="logo premium-logo" href="index.html" aria-label="KRYVEN ERA home"><img class="logo-image" src="logo-primary.png" alt="KRYVEN ERA logo"></a></div></header><main class="container" style="padding:70px 0"><div class="checkout-panel" style="max-width:720px;margin:auto;text-align:center"><div class="eyebrow">ORDER CONFIRMED</div><h1 style="font:700 48px 'Playfair Display',serif;margin:12px 0">Thank you.</h1><p class="muted">Your COD order <b>${esc(order.id)}</b> has been placed with your saved customer details.</p><a class="btn primary" href="tracking.html" style="margin-top:18px">TRACK ORDER →</a></div></main>`;cloudSave(order).catch(()=>{});};
+  document.getElementById('confirmOrderBtn')?.addEventListener('click',()=>{const selected=document.querySelector('input[name="paymentChoice"]:checked')?.value;if(selected==='online')goOnline();else placeCod();});
+}
 async function loadLiveCatalogForCheckout(){
   try{
     const res=await fetch(`${SUPABASE_URL}/rest/v1/kryven_store_state?id=eq.1&select=state`,{method:'GET',headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`},cache:'no-store'});
@@ -127,7 +144,61 @@ function paymentOrder(){try{return rebuildPaymentOrder(JSON.parse(localStorage.g
 function paymentHTML(order){const p=pricingForOrder(order);return `<header class="header"><div class="container nav"><a class="logo premium-logo" href="checkout.html" aria-label="KRYVEN ERA checkout"><img class="logo-image" src="logo-primary.png" alt="KRYVEN ERA logo"></a></div></header><main class="container payment-page"><a class="back-link" href="checkout.html">← Back to checkout</a><div class="payment-shell"><section class="payment-card"><div class="eyebrow">KRYVEN ERA / CASHFREE</div><h1>Complete payment securely.</h1><p class="muted">Your customer details have already been saved. You are now on the separate online payment page.</p><div class="payment-note">UPI, cards and net banking are handled by Cashfree. KRYVEN ERA does not receive or store your UPI PIN or card PIN.</div><button class="cashfree-button" id="cashfreeBtn">OPEN CASHFREE PAYMENT →</button><div id="paymentStatus" class="payment-status wait show">Preparing secure payment…</div><div class="secure-list"><div>✓ Server-created Cashfree payment session</div><div>✓ Secret key stays on the Vercel server</div><div>✓ Final payment status verified server-side</div></div></section><aside class="payment-summary"><div class="kicker">ORDER</div><div class="pay-items">${(order.items||[]).map(x=>`<div class="pay-item"><img src="${esc(x.image||'')}" alt=""><div><b>${esc(x.name||x.id)}</b><small>${esc(x.color||'Black')} · Size ${esc(x.size||'—')} · Qty ${Number(x.qty||1)}</small></div><strong>${money(x.lineTotal)}</strong></div>`).join('')}</div><div class="pay-lines"><div class="pay-line"><span>Subtotal</span><b>${money(order.subtotal)}</b></div><div class="pay-line"><span>Savings</span><b>−${money(order.discount||0)}</b></div><div class="pay-line"><span>Shipping</span><b>${order.shipping?money(order.shipping):'FREE'}</b></div><div class="pay-line total"><span>Total</span><b>${money(order.total)}</b></div></div><div class="pending-order">Customer: ${esc(order.customer?.name||'')}<br>Phone: ${esc(order.customer?.phone||'')}<br>Order ID: ${esc(order.id)}</div></aside></div></main>`}
 function pricingForOrder(o){const total=Number(o?.total||0);const subtotal=Number(o?.subtotal||0);const shipping=Number(o?.shipping||0);return{subtotal,discount:Number(o?.discount||0),shipping,total}}
 async function startPayment(order){const btn=document.getElementById('cashfreeBtn'),st=document.getElementById('paymentStatus');try{btn.disabled=true;st.className='payment-status wait show';st.textContent='Creating secure Cashfree session…';const resp=await fetch('/api/create-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:order.id,order_amount:Number(Number(order.total).toFixed(2)),customer:{customer_id:order.customerId,customer_name:order.customer?.name,customer_email:order.customer?.email||'',customer_phone:order.customer?.phone}})});const data=await resp.json().catch(()=>({}));if(!resp.ok||!data.payment_session_id){const detail=data?.details?.message||data?.details?.error_description||data?.details?.error||data?.details?.type||'';const diag=data?.diagnostic;const diagText=diag?` [mode=${diag.environment||'?'}; API=${diag.api_version||'?'}; ID=${diag.client_id_present?'yes':'no'}; secret=${diag.client_secret_present?'yes':'no'}]`:'';throw new Error((data?.error||(detail?`Cashfree: ${detail}`:'Cashfree payment session was not created'))+diagText);}st.textContent='Opening Cashfree…';const Factory=await loadCashfree();const cf=Factory({mode:data.cashfree_mode||'production'});const result=await cf.checkout({paymentSessionId:data.payment_session_id,redirectTarget:'_self'});if(result?.error)throw new Error(result.error.message||'Cashfree checkout could not open');}catch(e){console.error(e);btn.disabled=false;st.className='payment-status err show';st.textContent=e.message||'Payment could not be started';}}
-async function verifyReturn(){const url=new URL(location.href),oid=url.searchParams.get('order_id'),returned=url.searchParams.get('cashfree_return');if(!returned||!oid)return false;const st=document.getElementById('paymentStatus');const btn=document.getElementById('cashfreeBtn');if(btn)btn.disabled=true;if(st){st.className='payment-status wait show';st.textContent='Verifying payment status…'}try{const r=await fetch('/api/status?orderId='+encodeURIComponent(oid),{cache:'no-store'}),d=await r.json().catch(()=>({}));if(d.paid){const order=paymentOrder();if(order){order.status='Placed';order.paymentVerified=true;order.paidAt=new Date().toISOString();state.orders=[order,...state.orders];state.cart=[];saveState();localStorage.removeItem('kryven-cashfree-pending-order');setTimeout(()=>{cloudSave(order).catch(()=>{});},0)}if(st){st.className='payment-status ok show';st.textContent='Payment successful. Your order is confirmed.'}if(btn)btn.remove();setTimeout(()=>{location.href='tracking.html'},1400)}else{if(st){st.className='payment-status err show';st.textContent=d.pending?'Payment is still pending. Please wait and try again.':'Payment was not completed. No order was confirmed.'}if(btn)btn.disabled=false}}catch(e){if(st){st.className='payment-status err show';st.textContent='Could not verify payment status. Please refresh and try again.'}if(btn)btn.disabled=false}return true}
+async function verifyReturn(){
+  const url=new URL(location.href),oid=url.searchParams.get('order_id'),returned=url.searchParams.get('cashfree_return');
+  if(!returned||!oid)return false;
+  const st=document.getElementById('paymentStatus');
+  const btn=document.getElementById('cashfreeBtn');
+  if(btn)btn.disabled=true;
+  if(st){st.className='payment-status wait show';st.textContent='Verifying your payment securely…'}
+
+  const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+  let last={};
+  try{
+    // Cashfree can redirect a fraction of a second before the payment state becomes SUCCESS.
+    // Poll the server; never mark an order cancelled just because the first response is not final.
+    for(let attempt=0;attempt<12;attempt++){
+      const r=await fetch('/api/status?orderId='+encodeURIComponent(oid),{cache:'no-store'});
+      const d=await r.json().catch(()=>({}));
+      last=d;
+      if(d.paid){
+        let order=paymentOrder();
+        if(order){
+          order.id=oid;
+          order.status='Placed';
+          order.paymentVerified=true;
+          order.paymentStatus='SUCCESS';
+          order.paymentGateway='Cashfree';
+          order.paidAt=order.paidAt||new Date().toISOString();
+          state.orders=[order,...state.orders.filter(x=>x.id!==oid)];
+          state.cart=[];
+          saveState();
+          try{localStorage.removeItem('kryven-cashfree-pending-order')}catch{}
+          // Server-side /api/status already updates the pending cloud row idempotently.
+        }
+        if(st){st.className='payment-status ok show';st.textContent='Payment successful. Your order is confirmed!';}
+        if(btn)btn.remove();
+        setTimeout(()=>{location.href='tracking.html?order_id='+encodeURIComponent(oid)+'&confirmed=1'},1100);
+        return true;
+      }
+      if(d.status==='FAILED'){
+        if(st){st.className='payment-status err show';st.textContent='Payment was not completed. No order was confirmed.';}
+        if(btn)btn.disabled=false;
+        return true;
+      }
+      if(st)st.textContent=attempt<5?'Confirming payment with Cashfree…':'Payment is still being confirmed…';
+      await sleep(1800);
+    }
+    // Unknown/pending after the polling window is NOT treated as cancelled.
+    if(st){st.className='payment-status wait show';st.textContent='Payment is still being verified. Please check My Orders in a moment. No cancellation was recorded.';}
+    if(btn)btn.disabled=false;
+  }catch(e){
+    console.error('PAYMENT_VERIFY_ERROR',e,last);
+    if(st){st.className='payment-status wait show';st.textContent='Payment verification is taking longer than usual. Please refresh this page once; your order will only be confirmed after Cashfree verifies payment.';}
+    if(btn)btn.disabled=false;
+  }
+  return true;
+}
 function renderPayment(){const order=paymentOrder();if(!order){document.getElementById('paymentApp').innerHTML='<main class="container" style="padding:90px 0;text-align:center"><div class="payment-card"><h1 style="font:700 42px \'Playfair Display\',serif">No pending payment.</h1><a class="btn primary" href="checkout.html" style="margin-top:16px">BACK TO CHECKOUT →</a></div></main>';return}document.getElementById('paymentApp').innerHTML=paymentHTML(order);document.getElementById('cashfreeBtn').addEventListener('click',()=>startPayment(order));verifyReturn();setTimeout(()=>{if(!new URL(location.href).searchParams.has('cashfree_return'))startPayment(order)},80);}
 if(document.body.dataset.page==='checkout-standalone'){loadLiveCatalogForCheckout().finally(()=>renderCheckout());}else if(document.body.dataset.page==='payment-standalone'){loadLiveCatalogForCheckout().finally(()=>renderPayment());}
 })();
