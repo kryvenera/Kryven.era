@@ -29,7 +29,10 @@
   };
   const addLogoFallback=()=>{
     document.querySelectorAll('img.logo-image,img.admin-logo-image,img.account-auth-logo').forEach(img=>{
-      img.addEventListener('error',()=>{if(img.getAttribute('src')!=='favicon.png'){img.src='favicon.png';}});
+      img.addEventListener('error',()=>{
+        const fallback=img.classList.contains('logo-image')?'logo-primary.png':'logo-icon.png';
+        if(img.getAttribute('src')!==fallback){img.src=fallback;}
+      });
     });
   };
   const boot=()=>{addEntryShine();setupSearch();addLogoFallback();};
