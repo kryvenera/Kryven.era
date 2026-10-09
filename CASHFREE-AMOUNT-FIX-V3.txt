@@ -1,0 +1,1 @@
+V3 fixes checkout pricing by resolving product/cart prices from multiple price fields and embedded cart data; rebuilds payment order from live cart; cache-busted checkout-flow.js.

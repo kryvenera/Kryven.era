@@ -1,4 +1,3 @@
-// KRYVEN ERA logo system: primary=logo-primary.png, icon=logo-icon.png, favicon=logo-icon.png
 // Direct REST connection to Supabase. No SDK/global `supabase` variable is required.
 const SUPABASE_URL = 'https://iisezaptudifgwkjxnkh.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_oGorfrDciMl6GGOllbTjfg_Sr3YzDsH';
@@ -26,7 +25,7 @@ const IMG = {
 const defaultState = {
   settings: {
     brand:'KRYVEN ERA', tagline:'WEAR YOUR ERA', heroTitle:'OWN THE NIGHT.', heroText:'Luxury streetwear engineered for presence. Black, silver and gold details with a premium 3D experience.', heroVideo:'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
-    whatsapp:'7036421785', upi:'kryvenera@upi', currency:'₹', shipping:0, searchSuggestions:['oversized t-shirt','black hoodie','cargo pants','kryven era'],
+    whatsapp:'7036421785', upi:'kryvenera@upi', adminPin:'KRYVEN26', currency:'₹', shipping:0, searchSuggestions:['oversized t-shirt','black hoodie','cargo pants','kryven era'],
     payments:{cod:true,upi:false,card:false,bank:false,codAdvancePercent:20,paymentSettingsVersion:3},
     deliveryNote:'Free shipping on eligible orders', supportText:'Mon–Sat · 10 AM–7 PM'
   },
@@ -42,13 +41,9 @@ const defaultState = {
 };
 
 const KEY='kryven-era-state-v3';
-const CART_BACKUP_KEY='kryven-era-cart-backup-v1';
 const DEFAULT_HERO_VIDEO='kryven-era-hero-temp.mp4';
 function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||structuredClone(defaultState)}catch{return structuredClone(defaultState)}}
-function readCartBackup(){try{const raw=sessionStorage.getItem(CART_BACKUP_KEY);return raw?JSON.parse(raw):null}catch{return null}}
-function restoreCartBackup(st){try{const backup=readCartBackup();if((!Array.isArray(st.cart)||!st.cart.length)&&Array.isArray(backup)&&backup.length){st.cart=backup}}catch{}}
 let state=loadState();
-restoreCartBackup(state);
 function ensureVariantVisuals(){
   const tee=state.products?.find(p=>p.id==='KE001');
   if(!tee)return;
@@ -89,7 +84,7 @@ function hydrateState(){
   ensureVariantVisuals();
 }
 hydrateState();
-function save(){localStorage.setItem(KEY,JSON.stringify(state));try{if(Array.isArray(state.cart)&&state.cart.length)sessionStorage.setItem(CART_BACKUP_KEY,JSON.stringify(state.cart));else sessionStorage.removeItem(CART_BACKUP_KEY)}catch{}}
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 
 // LIVE CATALOG SYNC: the storefront reads the shared catalog from
 // public.kryven_store_state. Cart/profile/orders remain local or use their
@@ -134,7 +129,7 @@ function imgFallback(){event?.target?.style && (event.target.style.opacity='.35'
 function product(id){return state.products.find(p=>p.id===id)}
 function totalItems(){return state.cart.reduce((a,x)=>a+x.qty,0)}
 function toggleWishlist(id){state.wishlist=state.wishlist.includes(id)?state.wishlist.filter(x=>x!==id):[...state.wishlist,id];save();render();toast(state.wishlist.includes(id)?'Added to wishlist':'Removed from wishlist')}
-function addToBag(id,size,color='Black'){const p=product(id);if(!p){toast('Product is no longer available');return false}if(!size||!p.sizes?.[size]){toast('Please select an available size');return false}if(p.colors?.length&&!p.colors.includes(color))color=p.colors[0];const currentPrice=Number(p.price)||0;if(currentPrice<=0){toast('Product price is not available');return false}const line=state.cart.find(x=>x.id===id&&x.size===size&&x.color===color);if(line){line.qty=Math.max(1,Number(line.qty||1))+1;line.unitPrice=currentPrice;}else state.cart.push({id,size,color,qty:1,unitPrice:currentPrice});save();toast('✓ Added to bag');render();setTimeout(()=>{const b=document.querySelector('.nav-actions .icon-btn[title="Bag"]');if(b){b.classList.remove('bag-pop');void b.offsetWidth;b.classList.add('bag-pop');}},80);return true;}
+function addToBag(id,size,color='Black'){const p=product(id);if(!p){toast('Product is no longer available');return false}if(!size||!p.sizes?.[size]){toast('Please select an available size');return false}if(p.colors?.length&&!p.colors.includes(color))color=p.colors[0];const line=state.cart.find(x=>x.id===id&&x.size===size&&x.color===color);if(line)line.qty++;else state.cart.push({id,size,color,qty:1});save();toast('✓ Added to bag');render();setTimeout(()=>{const b=document.querySelector('.nav-actions .icon-btn[title="Bag"]');if(b){b.classList.remove('bag-pop');void b.offsetWidth;b.classList.add('bag-pop');}},80);return true;}
 function changeQty(i,d){state.cart[i].qty+=d;if(state.cart[i].qty<=0)state.cart.splice(i,1);save();render()}
 function getDiscountCode(){return document.querySelector('#coupon')?.value?.trim().toUpperCase()||''}
 function discountAmount(sub,c){return c==='KRYVEN10'?Math.round(sub*.10):0}
@@ -153,7 +148,7 @@ function closeSearchOverlay(){document.getElementById('searchOverlay')?.remove()
 function setSearchSuggestion(value){const input=document.querySelector('#topSearch');if(input){input.value=value;input.focus()}search(value)}
 window.closeSearchOverlay=closeSearchOverlay;window.setSearchSuggestion=setSearchSuggestion;
 
-function logo(){return `<a class="logo premium-logo" href="index.html" aria-label="KRYVEN ERA home"><img class="logo-image" src="logo-primary.png" alt="${esc(state.settings.brand||'KRYVEN ERA')} logo"></a>`}
+function logo(){return `<a class="logo premium-logo" href="index.html" aria-label="KRYVEN ERA home"><img class="logo-image" src="${esc(state.settings.adminLogo||'favicon.png')}" alt="KRYVEN ERA logo"><span class="logo-text">${esc(state.settings.brand)}<small>/${esc(state.settings.tagline)}</small></span></a>`}
 function header(){return `<header class="header"><div class="container nav">${logo()}<nav class="nav-links"><a href="index.html">Home</a><a href="shop.html">Shop</a><a href="categories.html">Categories</a><a href="wishlist.html">♡ Wishlist</a><a href="tracking.html">Track Order</a></nav><div class="search-wrap"><input id="topSearch" class="search" placeholder="Search products, brands..." onfocus="renderSearchOverlay('')" oninput="search(this.value)"/><span class="search-icon">⌕</span><button class="scan-btn" title="Scan barcode" onclick="startBarcodeScan()">▥</button></div><div class="nav-actions"><button class="icon-btn" title="Help & Care" aria-label="Help & Care" onclick="openSupport(event)">❔</button><button class="icon-btn" title="Wishlist" aria-label="Wishlist" onclick="openWishlist(event)">♡<span class="badge">${state.wishlist.length||''}</span></button><button class="icon-btn customer-icon-btn" title="Customer details" aria-label="Customer details" onclick="openProfile()">◎<span class="icon-shine"></span></button><button class="icon-btn" title="Bag" aria-label="Bag" onclick="openBag()">👜<span class="badge">${totalItems()||''}</span></button></div></div></header>`}
 function hero(){const hv=(state.settings.heroVideo||DEFAULT_HERO_VIDEO).trim()||DEFAULT_HERO_VIDEO;return `<section id="home" class="hero premium-hero"><div class="hero-media"><div class="hero-image" style="background-image:url('${IMG.hero}')"></div><video class="hero-video" autoplay muted loop playsinline preload="auto" poster="${IMG.hero}" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='kryven-era-hero-temp.mp4';this.play().catch(()=>{})}else{this.style.display='none'}" src="${esc(hv)}"></video><div class="hero-vignette"></div><div class="hero-media-glow"></div></div><div class="container hero-grid premium-hero-grid"><div class="hero-copy"><div class="kicker">KRYVEN ERA / 2026 COLLECTION</div><h1>WEAR<br><span>YOUR ERA.</span></h1><p>Not just clothing. A mindset. Premium streetwear engineered for presence, detail and movement.</p><div class="hero-cta"><a class="btn primary" href="shop.html">EXPLORE COLLECTION →</a><button class="btn ghost" onclick="openCategory('T-Shirts')">VIEW THE DROP</button></div><div class="hero-mini-meta"><span>01 / PREMIUM FABRICS</span><span>02 / LIMITED DROPS</span><span>03 / SECURE CHECKOUT</span></div></div><div class="hero-side-note"><div class="hero-side-line"></div><div>SCROLL TO ENTER THE ERA</div></div></div></section>`}
 function categories(){const cats=['T-Shirts','Hoodies','Pants','Jackets','Accessories'];return `<section id="categories" class="section"><div class="container"><div class="section-head"><div><div class="eyebrow">Explore by category</div><h2>THE ERA, YOUR WAY.</h2></div><p class="muted">Minimal forms, metallic accents and everyday silhouettes. Tap a category to filter the collection.</p></div><div class="categories">${cats.map((c,i)=>{const p=state.products.find(x=>x.category===c)||state.products[i%state.products.length];return `<button class="cat" onclick="openCategory('${c}')"><img src="${p.images[0]}" onerror="imgFallback()"/><div class="cat-info"><b>${c}</b><span>${state.products.filter(x=>x.category===c).length} pieces · View collection →</span></div></button>`}).join('')}</div></div></section>`}
@@ -264,7 +259,6 @@ function bindMobileSearchAutoHide(){
 
 
 function render(){
-  restoreCartBackup(state);
   document.getElementById('app').innerHTML=siteBackground()+renderPage();
   if(document.body.dataset.page==='product'){
     const p=product(new URLSearchParams(location.search).get('id')||state.products[0]?.id);
@@ -455,7 +449,7 @@ window.trackOrder=async()=>{const key=(document.getElementById('trackId')?.value
 function openSupport(e){e?.preventDefault();openDrawer(`<div class="drawer-head"><h3>Help & Care</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="form-section" style="margin-top:15px"><h4>Need help?</h4><p class="muted">${esc(state.settings.supportText)}</p><a class="btn success" href="https://wa.me/${esc(state.settings.whatsapp)}?text=${encodeURIComponent('Hello Kryven Era, I need help with my order.') }" target="_blank" style="display:inline-block;margin-top:8px">Chat on WhatsApp</a><p class="muted" style="margin-top:16px">Support number: +${esc(state.settings.whatsapp)}</p></div>`)}
 window.openSupport=openSupport;
 
-function openCheckout(){if(!state.cart.length){toast('Your bag is empty');return}try{sessionStorage.setItem(CART_BACKUP_KEY,JSON.stringify(state.cart));localStorage.setItem(KEY,JSON.stringify(state))}catch{}location.href='checkout.html'}
+function openCheckout(){if(!state.cart.length){toast('Your bag is empty');return}location.href='checkout.html'}
 window.applyCheckoutCoupon=()=>{const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0),d=discountAmount(sub,getDiscountCode());document.getElementById('couponMsg').textContent=d?'Coupon KRYVEN10 applied.': 'Use KRYVEN10 for 10% off in this demo.';document.getElementById('sumDisc').textContent='−'+money(d);document.getElementById('sumTotal').textContent=money(sub-d+state.settings.shipping)}
 window.placeOrder=async()=>{
   if(window.__orderSubmitting)return;
@@ -612,7 +606,7 @@ function setTrackingForStatus(o,status,note=''){
 state.orders.forEach(ensureOrderTracking);
 
 function header(){const home=document.body.dataset.page==='home';return `<header class="header hero-header ${home?'floating-header':''}"><div class="container nav">
-  <a class="logo premium-logo" href="index.html" aria-label="KRYVEN ERA home"><img class="logo-image" src="logo-primary.png" alt="KRYVEN ERA logo"></a>
+  <a class="logo premium-logo" href="index.html" aria-label="KRYVEN ERA home"><img class="logo-image" src="favicon.png" alt="KRYVEN ERA logo"><span class="logo-text">${esc(state.settings.brand)}<small>${esc(state.settings.tagline||'THE ERA OF UNCOMPROMISING STYLE')}</small></span></a>
   <nav class="nav-links"><a href="index.html">HOME</a><a href="shop.html">SHOP</a><a href="categories.html">CATEGORIES</a><a href="tracking.html">TRACK ORDER</a><a href="help-care.html">CONTACT</a></nav>
   <div class="search-wrap"><input id="topSearch" class="search" placeholder="Search the era…" onfocus="renderSearchOverlay('')" oninput="search(this.value)"/><span class="search-icon">⌕</span><button class="scan-btn" title="Scan barcode" onclick="startBarcodeScan()">▥</button></div>
   <div class="nav-actions"><button class="icon-btn menu-btn" title="Menu" aria-label="Open menu" onclick="openMenu()"><span class="menu-lines"><i></i><i></i><i></i></span></button><button class="icon-btn wishlist-btn ${state.wishlist.length?'has-wishlist':''}" title="Wishlist" aria-label="Wishlist" onclick="openWishlist(event)">♡<span class="badge">${state.wishlist.length||''}</span></button><button class="icon-btn customer-btn customer-icon-btn" title="Customer details" aria-label="Customer details" onclick="openProfile()">◎<span class="icon-shine"></span></button><button class="icon-btn bag-btn" title="Bag" aria-label="Bag" onclick="openBag()">👜<span class="badge">${totalItems()||''}</span></button></div>
@@ -766,7 +760,7 @@ function validateCheckoutForm(){
   return ok;
 }
 function syncCheckoutProfile(){state.profile={...state.profile,customerId:getCustomerId(),name:document.getElementById('coName')?.value.trim()||'',phone:document.getElementById('coPhone')?.value.trim()||'',email:document.getElementById('coEmail')?.value.trim()||'',address:document.getElementById('coAddress')?.value.trim()||'',landmark:document.getElementById('coLandmark')?.value.trim()||'',houseNumber:document.getElementById('coHouse')?.value.trim()||'',city:document.getElementById('coCity')?.value.trim()||'',state:document.getElementById('coState')?.value.trim()||'',pincode:document.getElementById('coPin')?.value.trim()||''};save()}
-window.openCheckout=()=>{if(!state.cart.length){toast('Your bag is empty');return}try{sessionStorage.setItem(CART_BACKUP_KEY,JSON.stringify(state.cart));localStorage.setItem(KEY,JSON.stringify(state))}catch{}location.href='checkout.html'};
+window.openCheckout=()=>{if(!state.cart.length){toast('Your bag is empty');return}location.href='checkout.html'};
 window.applyCheckoutCoupon=()=>{const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0),d=discountAmount(sub,getDiscountCode());const total=sub-d+Number(state.settings.shipping||0);const a=document.getElementById('sumSub'),b=document.getElementById('sumDisc'),c=document.getElementById('sumTotal'),m=document.getElementById('couponMsg');if(a)a.textContent=money(sub);if(b)b.textContent=d?`−${money(d)}`:money(0);if(c)c.textContent=money(total);if(m)m.textContent=d?'Coupon KRYVEN10 applied — 10% off.':'Use KRYVEN10 for 10% off.';}
 window.placeOrder=async()=>{
   if(window.__orderSubmitting)return;

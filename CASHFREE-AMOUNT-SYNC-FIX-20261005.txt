@@ -1,0 +1,7 @@
+KRYVEN ERA — CASHFREE / CHECKOUT FINAL PRICE SOURCE FIX — 2026-10-05
+
+- The live catalog price is now authoritative at checkout.
+- Old cart price snapshots are overwritten with the current admin/catalog price whenever the product exists.
+- This prevents a previous ₹399 price from surviving after an admin changes the product to ₹1.
+- Checkout subtotal, total, payment page and Cashfree order amount are derived from the same rebuilt order.
+- Cashfree merchant settlement destination is NOT controlled by website JavaScript; it is the settlement bank account configured in the Cashfree merchant dashboard.

@@ -1,0 +1,18 @@
+KRYVEN ERA - CASHFREE SETUP
+
+Folder structure:
+- Website files remain at the root (account.html, admin.html, app.js, etc.)
+- Only one API folder exists at the root: /api
+- API files are directly inside /api (no nested /cashfree folder)
+
+Vercel Environment Variables:
+CASHFREE_CLIENT_ID = your Cashfree App/Client ID
+CASHFREE_CLIENT_SECRET = your Cashfree Secret Key
+CASHFREE_ENV = sandbox   (change to production when going live)
+CASHFREE_API_VERSION = 2025-01-01
+
+IMPORTANT:
+- Never put CASHFREE_CLIENT_SECRET in HTML, app.js, or any frontend file.
+- Add the four variables in Vercel Project Settings > Environment Variables.
+- Redeploy after saving the variables.
+- Test in sandbox first.

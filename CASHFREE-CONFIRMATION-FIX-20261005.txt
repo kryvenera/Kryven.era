@@ -1,0 +1,19 @@
+KRYVEN ERA — CASHFREE PAYMENT CONFIRMATION FIX
+
+What changed:
+- Online orders are saved as "Awaiting Payment Verification" before Cashfree opens.
+- Cashfree payment status is checked server-side from /api/status.
+- A successful payment changes the same cloud order to:
+  status=Placed, paymentVerified=true, paymentStatus=SUCCESS.
+- The admin panel hides unverified Cashfree orders and shows them only after successful verification.
+- The return page polls briefly so a short Cashfree status delay is not treated as cancellation.
+- A verified Cashfree webhook is supported and updates the same cloud order idempotently.
+- Failed/pending payments are not marked as confirmed orders.
+- The browser no longer creates a duplicate cloud order after a successful payment.
+- Existing logo update and the current Cashfree amount/price fixes are preserved.
+
+Required Vercel environment variables remain:
+CASHFREE_CLIENT_ID
+CASHFREE_CLIENT_SECRET
+
+Cashfree environment defaults to production unless CASHFREE_ENV=sandbox is explicitly set.

@@ -1,0 +1,16 @@
+KRYVEN ERA — CASHFREE PAYMENT CONFIRMATION FIX V3
+
+- Cashfree payment status is verified server-side using the documented Get Payments for an Order endpoint.
+- Successful payments are confirmed only after Cashfree reports payment_status=SUCCESS.
+- The exact online order is saved before payment and is then promoted to Placed + paymentVerified=true.
+- If Supabase permits PATCH, the original pending order is updated. If the project currently allows INSERT but blocks UPDATE, a verified copy is safely inserted and the Admin panel deduplicates by order ID, preferring the verified record.
+- The browser no longer creates a duplicate pending order after successful payment.
+- The return page polls for delayed authorization instead of immediately treating a temporary pending state as cancellation.
+- Cashfree webhook signature is verified and SUCCESS webhooks also confirm the order server-side.
+- Payment page/checkout-flow are cache-busted and Vercel no-store headers are applied.
+- Existing KRYVEN ERA logo, product-price, and Cashfree amount fixes are preserved.
+
+Required Vercel variables:
+CASHFREE_CLIENT_ID
+CASHFREE_CLIENT_SECRET
+Optional: CASHFREE_ENV=production (default), CASHFREE_API_VERSION=2025-01-01 (default)

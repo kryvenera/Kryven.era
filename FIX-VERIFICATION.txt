@@ -1,0 +1,7 @@
+KRYVEN ERA CASHFREE PAYMENT FLOW FIX
+1. Checkout now loads the live Supabase catalog before calculating totals.
+2. Cart item IDs support id/productId/product_id/sku variants.
+3. Price calculation accepts common price fields and nested pricing.price.
+4. Online payment refuses zero/empty orders and sends the calculated total to /api/create-order.
+5. Cashfree server calls are bounded to 8 seconds and return diagnostics instead of hanging.
+6. api/create-order.js, api/status.js and api/webhook.js remain directly under root api/.

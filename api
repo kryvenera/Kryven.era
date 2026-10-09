@@ -1,0 +1,296 @@
+// Shared security helpers. The leading underscore keeps Vercel from exposing this file as an endpoint.
+import crypto from 'crypto';
+
+// ---- Rate limiting (best effort: in-memory, per serverless instance) ----
+const buckets = new Map();
+export function clientIp(req){
+  const xf = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return xf || req.socket?.remoteAddress || 'unknown';
+}
+export function rateLimit(req, res, name, limit, windowMs){
+  const now = Date.now();
+  const key = `${name}:${clientIp(req)}`;
+  let b = buckets.get(key);
+  if(!b || b.reset <= now){ b = { count: 0, reset: now + windowMs }; buckets.set(key, b); }
+  b.count++;
+  if(buckets.size > 5000){ for(const [k, v] of buckets) if(v.reset <= now) buckets.delete(k); }
+  res.setHeader('X-RateLimit-Limit', String(limit));
+  res.setHeader('X-RateLimit-Remaining', String(Math.max(0, limit - b.count)));
+  if(b.count > limit){
+    res.setHeader('Retry-After', String(Math.ceil((b.reset - now) / 1000)));
+    res.status(429).json({ error: 'Too many requests. Please wait a moment and try again.' });
+    return false;
+  }
+  return true;
+}
+
+// ---- Input sanitising / validation ----
+export const ORDER_ID_RE = /^[A-Za-z0-9_-]{1,50}$/;
+export function cleanText(v, max = 100){
+  return String(v ?? '').replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+export function validEmail(v){
+  const s = String(v ?? '').trim();
+  return s.length <= 120 && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(s) ? s : '';
+}
+
+// ---- Supabase config (env first, falls back to the existing public values) ----
+export function supabaseConfig(){
+  const url = process.env.SUPABASE_URL || 'https://iisezaptudifgwkjxnkh.supabase.co';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_oGorfrDciMl6GGOllbTjfg_Sr3YzDsH';
+  const table = process.env.SUPABASE_TABLE || 'Allow public order insert';
+  return { url, key, table, rest: `${url}/rest/v1/${encodeURIComponent(table)}` };
+}
+
+// ---- Admin token (HMAC signed, short lived) ----
+export function signAdminToken(ttlMs = 8 * 60 * 60 * 1000){
+  const secret = process.env.ADMIN_TOKEN_SECRET || process.env.ADMIN_PIN || '';
+  const payload = Buffer.from(JSON.stringify({ exp: Date.now() + ttlMs })).toString('base64url');
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  return `${payload}.${sig}`;
+}
+export function safeEqual(a, b){
+  const x = crypto.createHash('sha256').update(String(a)).digest();
+  const y = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(x, y);
+}
+// Server-side admin PIN check. The PIN lives only in the ADMIN_PIN environment variable (never in browser code).
+import { rateLimit, safeEqual, signAdminToken } from './_security.js';
+
+export default async function handler(req, res){
+  res.setHeader('Cache-Control', 'no-store');
+  if(req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  // Brute-force protection: 5 attempts per 15 minutes per IP.
+  if(!rateLimit(req, res, 'admin-login', 5, 15 * 60 * 1000)) return;
+  const expected = process.env.ADMIN_PIN || '';
+  if(!expected) return res.status(503).json({ error: 'ADMIN_PIN is not set in Vercel environment variables' });
+  let body = req.body;
+  if(typeof body === 'string'){ try{ body = JSON.parse(body) }catch{ body = {} } }
+  const pin = String(body?.pin ?? '').trim().slice(0, 100);
+  if(!pin || !safeEqual(pin, expected)) return res.status(401).json({ error: 'Incorrect admin PIN' });
+  return res.status(200).json({ ok: true, token: signAdminToken() });
+}
+import {rateLimit,ORDER_ID_RE,cleanText,validEmail} from './_security.js';
+
+export default async function handler(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='POST') return res.status(405).json({error:'Method not allowed'});
+  if(!rateLimit(req,res,'create-order',10,60*1000)) return;
+  try{
+    const {order_id,order_amount,customer}=req.body||{};
+    const amount=Number(order_amount);
+    const normalizedAmount=Number.isFinite(amount)?Number(amount.toFixed(2)):NaN;
+    if(!ORDER_ID_RE.test(String(order_id||''))||!Number.isFinite(normalizedAmount)||normalizedAmount<1||normalizedAmount>500000) return res.status(400).json({error:'Invalid order details'});
+    const debug=process.env.DEBUG_PAYMENTS==='1';
+    const clientId=process.env.CASHFREE_CLIENT_ID||process.env.cashfree_client_id||process.env['cashfree-client-id'];
+    const clientSecret=process.env.CASHFREE_CLIENT_SECRET||process.env.cashfree_client_secret||process.env['cashfree-client-secret'];
+    const env=String(process.env.CASHFREE_ENV||'production').toLowerCase()==='sandbox'?'sandbox':'production';
+    const apiVersion=process.env.CASHFREE_API_VERSION||'2025-01-01';
+    const diagnostic={environment:env,api_version:apiVersion,client_id_present:Boolean(clientId),client_secret_present:Boolean(clientSecret),request_method:req.method};
+    if(!clientId||!clientSecret) return res.status(500).json({error:'Cashfree environment variables are missing',...(debug?{diagnostic}:{})});
+    const baseUrl=env==='sandbox'?'https://sandbox.cashfree.com':'https://api.cashfree.com';
+    const proto=String(req.headers['x-forwarded-proto']||'https').split(',')[0].trim();
+    const host=req.headers['x-forwarded-host']||req.headers.host;
+    if(!host) return res.status(500).json({error:'Unable to determine website URL'});
+    const origin=`${proto}://${host}`;
+    const customerPhone=String(customer?.customer_phone||'').replace(/\D/g,'');
+    if(!/^\d{10}$/.test(customerPhone)) return res.status(400).json({error:'A valid 10-digit customer phone number is required'});
+    const body={
+      order_id:String(order_id),
+      order_amount:normalizedAmount,
+      order_currency:'INR',
+      customer_details:{
+        customer_id:cleanText(customer?.customer_id||order_id,50).replace(/[^A-Za-z0-9_-]/g,'')||String(order_id),
+        customer_name:cleanText(customer?.customer_name,100)||'Kryven Customer',
+        customer_email:validEmail(customer?.customer_email)||'customer@kryvenera.in',
+        customer_phone:customerPhone
+      },
+      order_meta:{
+        return_url:`${origin}/payment.html?cashfree_return=1&order_id={order_id}`,
+        notify_url:`${origin}/api/webhook`
+      }
+    };
+    let r,data,raw='';
+    try{
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),8000);r=await fetch(`${baseUrl}/pg/orders`,{method:'POST',headers:{'x-client-id':clientId,'x-client-secret':clientSecret,'x-api-version':apiVersion,Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});clearTimeout(timer);
+      raw=await r.text();
+      try{data=JSON.parse(raw)}catch{data={raw:raw.slice(0,1000)}}
+    }catch(fetchErr){
+      console.error('CASHFREE_CONNECT_ERROR',fetchErr?.message);return res.status(502).json({error:'Could not connect to Cashfree API',...(debug?{diagnostic:{...diagnostic,base_url:baseUrl},details:{message:fetchErr?.message||String(fetchErr)}}:{})});
+    }
+    if(!r.ok){console.error('CASHFREE_ORDER_ERROR',r.status,data);return res.status(r.status>=500?502:400).json({error:data?.message||data?.error_description||'Cashfree order creation failed',cashfree_status:r.status,...(debug?{diagnostic:{...diagnostic,base_url:baseUrl,order_id,order_amount:normalizedAmount,customer_phone_present:Boolean(customerPhone)},details:data}:{})});}
+    if(!data?.payment_session_id){console.error('CASHFREE_NO_SESSION',data);return res.status(502).json({error:'Cashfree responded without payment_session_id',...(debug?{details:data}:{})});}
+    return res.status(200).json({order_id:data.order_id||order_id,order_amount:normalizedAmount,payment_session_id:data.payment_session_id,cashfree_mode:env});
+  }catch(e){console.error('CREATE_ORDER_ERROR',e);return res.status(500).json({error:'Server error'});}
+}
+export default function handler(req,res){
+  if(req.method!=='GET') return res.status(405).json({error:'Method not allowed'});
+  return res.status(200).json({ok:true,service:'kryven-era-api'});
+}
+// KRYVEN ERA / CASHFREE SERVER-SIDE PAYMENT VERIFICATION
+import {rateLimit,ORDER_ID_RE,supabaseConfig} from './_security.js';
+const {key:SUPABASE_KEY,rest:SUPABASE_REST}=supabaseConfig();
+
+function cashfreeConfig(){
+  const clientId=process.env.CASHFREE_CLIENT_ID||process.env.cashfree_client_id||process.env['cashfree-client-id'];
+  const clientSecret=process.env.CASHFREE_CLIENT_SECRET||process.env.cashfree_client_secret||process.env['cashfree-client-secret'];
+  const env=String(process.env.CASHFREE_ENV||'production').toLowerCase()==='sandbox'?'sandbox':'production';
+  const apiVersion=process.env.CASHFREE_API_VERSION||'2025-01-01';
+  return {clientId,clientSecret,env,apiVersion,baseUrl:env==='sandbox'?'https://sandbox.cashfree.com':'https://api.cashfree.com'};
+}
+
+function supabaseHeaders(extra={}){return Object.assign({apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'},extra)}
+
+async function findCloudOrder(orderId){
+  const key=encodeURIComponent('Product name');
+  const needle=encodeURIComponent(String(orderId));
+  const url=`${SUPABASE_REST}?select=*&${key}=ilike.*${needle}*&order=id.desc&limit=50`;
+  const r=await fetch(url,{headers:supabaseHeaders()});
+  if(!r.ok) return {row:null,o:null,error:`lookup ${r.status}`};
+  const rows=await r.json().catch(()=>[]);
+  for(const row of (Array.isArray(rows)?rows:[])){
+    try{
+      const o=JSON.parse(row['Product name']||'null');
+      if(o&&String(o.id)===String(orderId)) return {row,o,error:null};
+    }catch{}
+  }
+  return {row:null,o:null,error:null};
+}
+
+function orderRow(o,rowId){
+  return {
+    id:rowId,
+    'Customer name':o.customer?.name||'',
+    'Customer address':`${o.customer?.houseNumber?o.customer.houseNumber+', ':''}${o.customer?.address||''}${o.customer?.landmark?', '+o.customer.landmark:''}, ${o.customer?.city||''}, ${o.customer?.state||''}, ${o.customer?.pincode||''}`,
+    'Product name':JSON.stringify(o),
+    'Customer number':o.customer?.phone||'',
+    'Product price':String(o.total??0),
+    'Product size':(o.items||[]).map(x=>`${x.name||x.id||''} x${x.qty||1} ${x.size||''}`).join(' | ')
+  };
+}
+
+async function confirmCloudOrder(orderId,payment){
+  const found=await findCloudOrder(orderId);
+  if(found.row&&found.o){
+    const o=found.o;
+    o.status='Placed';
+    o.paymentVerified=true;
+    o.paymentStatus='SUCCESS';
+    o.paidAt=o.paidAt||new Date().toISOString();
+    o.paymentGateway='Cashfree';
+    if(payment?.cf_payment_id)o.cashfreePaymentId=String(payment.cf_payment_id);
+    if(payment?.payment_amount!=null)o.paidAmount=Number(payment.payment_amount);
+    if(payment?.payment_group)o.paymentMethod=String(payment.payment_group);
+    const patchUrl=`${SUPABASE_REST}?id=eq.${encodeURIComponent(found.row.id)}`;
+    const pr=await fetch(patchUrl,{method:'PATCH',headers:supabaseHeaders({Prefer:'return=minimal'}),body:JSON.stringify(orderRow(o,found.row.id))});
+    if(pr.ok) return {updated:true,mode:'patched',rowId:found.row.id};
+
+    // Some Supabase setups allow public INSERT but not UPDATE. In that case,
+    // create one verified copy; admin.js deduplicates by order ID and prefers it.
+    const existingConfirmed=JSON.stringify(found.o||{}).includes('"paymentVerified":true') && String(found.o?.paymentStatus||'').toUpperCase()==='SUCCESS';
+    if(existingConfirmed) return {updated:false,mode:'already-confirmed',rowId:found.row.id};
+    const newId=Number(`${Date.now()}${String(Math.floor(Math.random()*1000)).padStart(3,'0')}`);
+    const ir=await fetch(SUPABASE_REST,{method:'POST',headers:supabaseHeaders({Prefer:'return=minimal'}),body:JSON.stringify(orderRow(o,newId))});
+    return {updated:ir.ok,mode:ir.ok?'inserted-confirmed':'update-and-insert-failed',rowId:ir.ok?newId:found.row.id};
+  }
+  return {updated:false,mode:'order-row-not-found'};
+}
+
+async function getPayments(cfg,orderId){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),8000);
+  try{
+    const r=await fetch(`${cfg.baseUrl}/pg/orders/${encodeURIComponent(orderId)}/payments`,{headers:{'x-client-id':cfg.clientId,'x-client-secret':cfg.clientSecret,'x-api-version':cfg.apiVersion,Accept:'application/json'},signal:controller.signal});
+    const text=await r.text();let data=[];try{data=JSON.parse(text)}catch{data=[]}
+    if(!r.ok) throw new Error(data?.message||data?.error||`Cashfree status error (${r.status})`);
+    return Array.isArray(data)?data:[];
+  }finally{clearTimeout(timer)}
+}
+
+export default async function handler(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET') return res.status(405).json({error:'Method not allowed'});
+  if(!rateLimit(req,res,'status',60,60*1000)) return;
+  try{
+    const orderId=String(req.query?.orderId||'').trim();
+    if(!ORDER_ID_RE.test(orderId)) return res.status(400).json({error:'Invalid orderId'});
+    const cfg=cashfreeConfig();
+    if(!cfg.clientId||!cfg.clientSecret) return res.status(500).json({error:'Cashfree environment variables are missing'});
+
+    const payments=await getPayments(cfg,orderId);
+    const normalized=payments.map(x=>({...x,payment_status:String(x?.payment_status||'').toUpperCase()}));
+    const success=normalized.find(x=>x.payment_status==='SUCCESS');
+    const pending=normalized.some(x=>x.payment_status==='PENDING');
+    const failed=normalized.some(x=>['FAILED','USER_DROPPED','CANCELLED','EXPIRED'].includes(x.payment_status));
+
+    let cloud=null;
+    if(success) cloud=await confirmCloudOrder(orderId,success);
+
+    return res.status(200).json({
+      paid:Boolean(success),
+      pending:!success&&pending,
+      failed:!success&&!pending&&failed,
+      status:success?'SUCCESS':pending?'PENDING':failed?'FAILED':'UNKNOWN',
+      amount:success?.payment_amount!=null?Number(success.payment_amount):null,
+      paymentId:success?.cf_payment_id||null,
+      cloud,
+      payments:normalized
+    });
+// KRYVEN ERA / VERIFIED CASHFREE WEBHOOK
+import crypto from 'crypto';
+import {rateLimit,ORDER_ID_RE,supabaseConfig} from './_security.js';
+
+const {key:SUPABASE_KEY,rest:SUPABASE_REST}=supabaseConfig();
+export const config = { api: { bodyParser: false } };
+
+function supabaseHeaders(extra={}){return Object.assign({apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'},extra)}
+function secret(){return process.env.CASHFREE_CLIENT_SECRET||process.env.cashfree_client_secret||process.env['cashfree-client-secret']||''}
+
+async function readRawBody(req){
+  if(Buffer.isBuffer(req.rawBody)) return req.rawBody.toString('utf8');
+  if(typeof req.rawBody==='string') return req.rawBody;
+  if(typeof req.body==='string') return req.body;
+  return await new Promise((resolve,reject)=>{const chunks=[];req.on('data',c=>chunks.push(Buffer.from(c)));req.on('end',()=>resolve(Buffer.concat(chunks).toString('utf8')));req.on('error',reject)});
+}
+function verifySignature(raw,signature,timestamp){
+  if(!raw||!signature||!timestamp||!secret())return false;
+  const expected=crypto.createHmac('sha256',secret()).update(`${timestamp}${raw}`).digest('base64');
+  try{return crypto.timingSafeEqual(Buffer.from(expected),Buffer.from(String(signature)))}catch{return false}
+}
+function orderRow(o,rowId){return {id:rowId,'Customer name':o.customer?.name||'','Customer address':`${o.customer?.houseNumber?o.customer.houseNumber+', ':''}${o.customer?.address||''}${o.customer?.landmark?', '+o.customer.landmark:''}, ${o.customer?.city||''}, ${o.customer?.state||''}, ${o.customer?.pincode||''}`,'Product name':JSON.stringify(o),'Customer number':o.customer?.phone||'','Product price':String(o.total??0),'Product size':(o.items||[]).map(x=>`${x.name||x.id||''} x${x.qty||1} ${x.size||''}`).join(' | ')}}
+async function confirmCloud(orderId,payment){
+  const key=encodeURIComponent('Product name'),needle=encodeURIComponent(orderId);
+  const rr=await fetch(`${SUPABASE_REST}?select=*&${key}=ilike.*${needle}*&order=id.desc&limit=50`,{headers:supabaseHeaders()});
+  if(!rr.ok)return {updated:false,reason:`lookup ${rr.status}`};
+  const rows=await rr.json().catch(()=>[]);
+  let found=null;
+  for(const row of rows||[]){try{const o=JSON.parse(row['Product name']||'null');if(o&&String(o.id)===String(orderId)){found={row,o};break}}catch{}}
+  if(!found)return {updated:false,reason:'order row not found'};
+  const o=found.o;o.status='Placed';o.paymentVerified=true;o.paymentStatus='SUCCESS';o.paidAt=o.paidAt||new Date().toISOString();o.paymentGateway='Cashfree';if(payment?.cf_payment_id)o.cashfreePaymentId=String(payment.cf_payment_id);if(payment?.payment_amount!=null)o.paidAmount=Number(payment.payment_amount);if(payment?.payment_group)o.paymentMethod=String(payment.payment_group);
+  const pr=await fetch(`${SUPABASE_REST}?id=eq.${encodeURIComponent(found.row.id)}`,{method:'PATCH',headers:supabaseHeaders({Prefer:'return=minimal'}),body:JSON.stringify(orderRow(o,found.row.id))});
+  if(pr.ok)return {updated:true,mode:'patched',rowId:found.row.id};
+  const newId=Number(`${Date.now()}${String(Math.floor(Math.random()*1000)).padStart(3,'0')}`);
+  const ir=await fetch(SUPABASE_REST,{method:'POST',headers:supabaseHeaders({Prefer:'return=minimal'}),body:JSON.stringify(orderRow(o,newId))});
+  return {updated:ir.ok,mode:ir.ok?'inserted-confirmed':'update-and-insert-failed',rowId:ir.ok?newId:null};
+}
+
+export default async function handler(req,res){
+  if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
+  if(!rateLimit(req,res,'webhook',120,60*1000)) return;
+  try{
+    const raw=await readRawBody(req);
+    if(!verifySignature(raw,req.headers['x-webhook-signature'],req.headers['x-webhook-timestamp'])) return res.status(401).json({error:'Invalid Cashfree webhook signature'});
+    const payload=JSON.parse(raw||'{}');
+    const type=String(payload?.type||'').toUpperCase();
+    const payment=payload?.data?.payment||{};
+    const orderId=String(payload?.data?.order?.order_id||payment?.order_id||payload?.order_id||'').trim();
+    const status=String(payment?.payment_status||payload?.data?.payment_status||'').toUpperCase();
+    if(orderId&&!ORDER_ID_RE.test(orderId))return res.status(400).json({error:'Invalid order id'});
+    if(orderId&&(status==='SUCCESS'||type.includes('SUCCESS'))){const cloud=await confirmCloud(orderId,payment);return res.status(200).json({ok:true,order_id:orderId,cloud})}
+    return res.status(200).json({ok:true,ignored:true,order_id:orderId,status});
+  }catch(e){console.error('CASHFREE_WEBHOOK_ERROR',e);return res.status(400).json({error:'Invalid webhook payload'});}
+}
+  }catch(e){
+    console.error('STATUS_ERROR',e);return res.status(500).json({error:'Unable to verify payment status'});
+  }
+}

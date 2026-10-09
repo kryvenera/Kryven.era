@@ -1,0 +1,13 @@
+KRYVEN ERA FINAL ORDER/CHECKOUT FIX — 2026-10-03
+
+Fixes:
+1. Buy Now now adds a valid available size automatically if none is selected, then navigates directly to checkout.html.
+2. Proceed to Checkout uses native checkout.html navigation.
+3. COD order confirmation is local-first and does NOT await Supabase.
+4. Supabase cloud sync is background-only and has a 5-second timeout in standalone checkout.
+5. Customer checkout draft remains in localStorage.
+6. Checkout page is standalone and does not depend on Cashfree SDK loading.
+7. Online payment remains on payment.html.
+8. Cache-busting version updated to 20261003-1948-final-order-fix.
+
+Syntax checks passed for app.js, checkout-flow.js, api/create-order.js, api/status.js.

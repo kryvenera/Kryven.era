@@ -1,0 +1,12 @@
+KRYVEN ERA FINAL PAYMENT FLOW
+
+1. Product Buy Now -> checkout.html
+2. Bag Proceed to Checkout -> checkout.html
+3. Checkout details auto-save locally.
+4. Choose Online Payment -> payment.html
+5. payment.html -> /api/create-order -> Cashfree Checkout
+6. Cashfree return -> payment.html -> /api/status -> order confirmation
+7. Choose COD -> order is saved locally and attempted in Supabase, then confirmation is shown.
+
+Important: upload the extracted files to the GitHub repository root. Do not upload this ZIP file inside the repo.
+Environment variables remain: CASHFREE_CLIENT_ID and CASHFREE_CLIENT_SECRET.

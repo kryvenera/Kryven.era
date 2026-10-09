@@ -1,0 +1,8 @@
+KRYVEN ERA - SECURITY HARDENING (only the items from the video checklist)
+- Secrets: hardcoded admin PIN removed from app.js/admin.js; PIN now ADMIN_PIN env var, checked by /api/admin-login. Supabase URL/key in api/* now read env vars (fallback = old values). .gitignore + .env.example added.
+- Admin auth: server-side PIN check, timing-safe compare, 5 attempts / 15 min / IP.
+- Form/input sanitising: order id, amount (1-500000), name, email validated/cleaned in create-order; orderId validated in status + webhook.
+- Rate limiting: create-order 10/min, status 60/min, webhook 120/min, admin-login 5/15min (per IP, best effort).
+- Security headers: CSP, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy, HSTS (vercel.json).
+- Error leaks: Cashfree diagnostics/raw errors hidden unless DEBUG_PAYMENTS=1.
+- Payment flow logic untouched.

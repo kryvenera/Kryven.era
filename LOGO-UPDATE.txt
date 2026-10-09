@@ -1,0 +1,7 @@
+KRYVEN ERA LOGO UPDATE
+- logo-primary.png = new full primary logo from provided brand sheet.
+- logo-icon.png = new icon mark.
+- logo-primary-white.png / logo-icon-white.png = white variants.
+- favicon.png = new icon mark for browser/app favicon.
+All storefront headers/checkout headers now use logo-primary.png.
+Admin/account avatars use logo-icon.png.
