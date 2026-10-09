@@ -56,7 +56,7 @@ const STATUS_FLOW = ['Placed','Processing','Shipped','Out for Delivery','Deliver
 const STATUS_COPY = {Placed:'Order received',Processing:'Preparing order',Shipped:'In transit','Out for Delivery':'Courier is delivering today',Delivered:'Delivered',Cancelled:'Order cancelled'};
 
 const fallback = {
-  settings:{brand:'KRYVEN ERA',tagline:'THE ERA OF UNCOMPROMISING STYLE',heroTitle:'WEAR YOUR ERA',heroText:'Premium streetwear engineered for presence.',heroVideo:'kryven-era-hero-temp.mp4',heroVideoSeeded:true,adminLogo:'logo-icon.png',backgroundVideo:'kryven-era-hero-temp.mp4',backgroundVideoEnabled:true,cashfreeQrImage:'',paymentVerifyEndpoint:'/api/upi/verify',whatsapp:'7036421785',upi:'kryvenera@upi',adminPin:'KRYVEN26',currency:'₹',shipping:0,payments:{cod:true,upi:false,card:false,bank:false,codAdvancePercent:20,paymentSettingsVersion:3},supportText:'Mon–Sat · 10 AM–7 PM',searchSuggestions:['oversized t-shirt','black hoodie','cargo pants','kryven era']},
+  settings:{brand:'KRYVEN ERA',tagline:'THE ERA OF UNCOMPROMISING STYLE',heroTitle:'WEAR YOUR ERA',heroText:'Premium streetwear engineered for presence.',heroVideo:'kryven-era-hero-temp.mp4',heroVideoSeeded:true,adminLogo:'logo-icon.png',backgroundVideo:'kryven-era-hero-temp.mp4',backgroundVideoEnabled:true,cashfreeQrImage:'',paymentVerifyEndpoint:'/api/upi/verify',whatsapp:'7036421785',upi:'kryvenera@upi',currency:'₹',shipping:0,payments:{cod:true,upi:false,card:false,bank:false,codAdvancePercent:20,paymentSettingsVersion:3},supportText:'Mon–Sat · 10 AM–7 PM',searchSuggestions:['oversized t-shirt','black hoodie','cargo pants','kryven era']},
   products:[
     {id:'KE001',name:'Kryven Era Logo Tee',category:'T-Shirts',price:1299,mrp:1999,discount:'35% OFF',rating:4.8,reviews:124,barcode:'890100000001',images:[IMG.tshirt],sizes:{S:true,M:true,L:true,XL:true,XXL:false},colors:['Black','White','Silver'],description:'Oversized premium-cotton tee.',features:['Premium cotton','Oversized fit'],stock:18},
     {id:'KE002',name:'Kryven Signature Hoodie',category:'Hoodies',price:2499,mrp:3199,discount:'22% OFF',rating:4.7,reviews:88,barcode:'890100000002',images:[IMG.hoodie],sizes:{S:true,M:true,L:true,XL:false,XXL:true},colors:['Black'],description:'Premium fleece hoodie.',features:['480 GSM fleece','Drop shoulder'],stock:9},
@@ -92,20 +92,15 @@ async function supabaseRequest(url=SUPABASE_REST,options={}){
   if(!res.ok)throw new Error(data?.message||data?.error_description||text||`HTTP ${res.status}`);
   return data;
 }
-const PIN_RESET_KEY = 'kryven-era-admin-pin-reset-v1';
 function load(){
   let data;
   try{data=JSON.parse(localStorage.getItem(KEY))||structuredClone(fallback)}catch{data=structuredClone(fallback)}
-  if(localStorage.getItem(PIN_RESET_KEY)!=='1'){
-    data.settings=data.settings||{};
-    data.settings.adminPin='KRYVEN26';
-    try{localStorage.setItem(KEY,JSON.stringify(data));localStorage.setItem(PIN_RESET_KEY,'1')}catch{}
-  }
+  // Admin PIN is verified server-side (ADMIN_PIN env var); never keep it in browser storage.
+  if(data.settings&&'adminPin' in data.settings){delete data.settings.adminPin;try{localStorage.setItem(KEY,JSON.stringify(data))}catch{}}
   return data;
 }
 let state=load(); state.settings=ensureMerchandisingSettings(state.settings); let active='dashboard'; let selectedOrder=null;
 let __cloudSaveTimer=null;
-let __adminPinSession=sessionStorage.getItem('ke-admin-pin')||'KRYVEN26';
 const LIVE_STATE_REST = `${SUPABASE_URL}/rest/v1/kryven_store_state`;
 function cloudPayload(){
   const settings=structuredClone(state.settings||{});
@@ -221,7 +216,11 @@ function app(){document.getElementById('adminApp').innerHTML=`<div class="admin-
 function isAuthed(){return sessionStorage.getItem('ke-admin-auth')==='1'}
 function login(){document.getElementById('adminBody').innerHTML=`<div class="locked"><div class="locked-card premium-login"><div class="login-mark"><img src="${esc(state.settings.adminLogo||'logo-icon.png')}" alt="Admin logo" onerror="this.style.display='none'"></div><div class="eyebrow">KRYVEN ERA / PRIVATE ACCESS</div><h2>Command Center</h2><p class="muted">Owner access only. Manage customers, orders and delivery from here.</p><div class="field"><label>ADMIN PIN</label><div style="display:flex;gap:8px"><input id="pin" type="password" inputmode="text" placeholder="Enter PIN" onkeydown="if(event.key==='Enter')auth()" style="flex:1"><button class="btn" type="button" onclick="toggleLoginPin(this)">SHOW</button></div></div><button class="btn primary" style="width:100%;margin-top:12px" onclick="auth()">UNLOCK PANEL →</button></div></div>`}
 window.toggleLoginPin=(btn)=>{const el=document.getElementById('pin');if(!el)return;el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'SHOW':'HIDE'}
-window.auth=async()=>{const entered=String(document.getElementById('pin')?.value||'').trim();const saved=String(state.settings?.adminPin||'').trim();const recovery='KRYVEN26';if(!entered){toast('Enter your Admin PIN');return}const localOk=entered===saved||entered===recovery;if(localOk){__adminPinSession=entered;sessionStorage.setItem('ke-admin-pin',entered);await loadCloudAdminState();sessionStorage.setItem('ke-admin-auth','1');renderBody()}else toast('Incorrect admin PIN — use your saved PIN or KRYVEN26')}
+window.auth=async()=>{const entered=String(document.getElementById('pin')?.value||'').trim();if(!entered){toast('Enter your Admin PIN');return}
+  try{const r=await fetch('/api/admin-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:entered})});const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){toast(d.error||'Incorrect admin PIN');return}
+    sessionStorage.setItem('ke-admin-token',d.token||'');await loadCloudAdminState();sessionStorage.setItem('ke-admin-auth','1');renderBody();
+  }catch(e){toast('Could not reach the server — try again')}}
 function renderBody(){
   if(!isAuthed()){login();return}
   const delivered=(state.orders||[]).filter(o=>o.status==='Delivered').length;
@@ -406,7 +405,7 @@ function settings(){
     <div class="field"><label>PAYMENT VERIFY ENDPOINT</label><input id="sPaymentVerify" value="${esc(s.paymentVerifyEndpoint||'/api/upi/verify')}" placeholder="/api/upi/verify"><small class="field-help">Backend endpoint that returns paid=true only after the gateway confirms payment.</small></div>
     <div class="field"><label>SHIPPING</label><input id="sShip" type="number" value="${Number(s.shipping||0)}"></div><div class="field"><label>SUPPORT HOURS</label><input id="sHours" value="${esc(s.supportText||'')}"></div>
   </div></div>
-  <div class="form-section premium-panel"><h4>Admin security</h4><div class="form-grid"><div class="field"><label>ADMIN PIN</label><div style="display:flex;gap:8px"><input id="sPin" type="password" value="${esc(s.adminPin||'')}" style="flex:1"><button class="btn" type="button" onclick="toggleAdminPin('sPin',this)">SHOW</button></div><small class="field-help">PIN reset default: KRYVEN26. You can change it here.</small></div></div></div>`
+  <div class="form-section premium-panel"><h4>Admin security</h4><div class="form-grid"><div class="field"><label>ADMIN PIN</label><small class="field-help">The Admin PIN is now stored securely on the server. To change it, update the ADMIN_PIN variable in Vercel and redeploy.</small></div></div></div>`
 }
 window.toggleAdminPin=(id,btn)=>{const el=document.getElementById(id);if(!el)return;el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'SHOW':'HIDE'}
 window.saveSettings=()=>{
@@ -417,8 +416,7 @@ window.saveSettings=()=>{
   s.cashfreeQrImage=document.getElementById('sCashfreeQr')?.value.trim()||'';s.paymentVerifyEndpoint=document.getElementById('sPaymentVerify')?.value.trim()||'/api/upi/verify';s.heroText=document.getElementById('sHeroText').value.trim();
   s.whatsapp=document.getElementById('sWa').value.trim();s.upi=document.getElementById('sUpi').value.trim();s.shipping=Number(document.getElementById('sShip').value||0);s.supportText=document.getElementById('sHours').value.trim();
   s.searchSuggestions=(document.getElementById('sSearchSuggestions')?.value||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,12);
-  const newPin=document.getElementById('sPin').value.trim();if(!newPin){toast('Admin PIN cannot be empty');return}s.adminPin=newPin;
-  state.settings=s;save();toast('Website settings saved');renderBody();
+    state.settings=s;save();toast('Website settings saved');renderBody();
 };
 window.saveOfferSettings=()=>{
   const s=ensureMerchandisingSettings(state.settings);

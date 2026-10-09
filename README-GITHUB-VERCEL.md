@@ -14,11 +14,16 @@ Add these Vercel Environment Variables:
 - `CASHFREE_CLIENT_SECRET` = your Cashfree Secret Key
 - `CASHFREE_ENV` = `production` (use `sandbox` only while testing)
 - `CASHFREE_API_VERSION` = `2025-01-01`
+- `ADMIN_PIN` = your Admin panel PIN (**required**; the admin login is now checked on the server)
+- `ADMIN_TOKEN_SECRET` = any long random string (optional)
+
+Never commit a `.env` file; `.gitignore` already blocks it. See `.env.example`.
 
 The Cashfree server functions are:
 
 - `/api/create-order`
 - `/api/status`
 - `/api/webhook`
+- `/api/admin-login`
 
 Important: GitHub Pages alone cannot safely run the Cashfree server functions because the Secret Key must stay server-side. Use GitHub as the source repository and Vercel (or another server runtime) to deploy the `api/` functions.

@@ -26,7 +26,7 @@ const IMG = {
 const defaultState = {
   settings: {
     brand:'KRYVEN ERA', tagline:'WEAR YOUR ERA', heroTitle:'OWN THE NIGHT.', heroText:'Luxury streetwear engineered for presence. Black, silver and gold details with a premium 3D experience.', heroVideo:'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
-    whatsapp:'7036421785', upi:'kryvenera@upi', adminPin:'KRYVEN26', currency:'₹', shipping:0, searchSuggestions:['oversized t-shirt','black hoodie','cargo pants','kryven era'],
+    whatsapp:'7036421785', upi:'kryvenera@upi', currency:'₹', shipping:0, searchSuggestions:['oversized t-shirt','black hoodie','cargo pants','kryven era'],
     payments:{cod:true,upi:false,card:false,bank:false,codAdvancePercent:20,paymentSettingsVersion:3},
     deliveryNote:'Free shipping on eligible orders', supportText:'Mon–Sat · 10 AM–7 PM'
   },
