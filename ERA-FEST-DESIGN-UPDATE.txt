@@ -1,0 +1,18 @@
+KRYVEN ERA — ERA FEST PREMIUM DESIGN UPDATE
+Date: 10 October 2026
+
+Included UI updates:
+- Unified red festival top strip and sticky navigation header.
+- Added global search bar with product/category search and a dedicated search results page.
+- Added sign-in / account indicator and refresh on authentication state changes.
+- Added category navigation and homepage tiles for T-Shirts, Hoodies, Pants, Jackets, and Accessories.
+- Added responsive red-and-gold THE ERA FEST offer panel inspired by festive mega-sale energy while keeping KRYVEN ERA's original branding.
+- Normalized typography, card spacing, product grid, member-price labels, and promotion page styling.
+
+Verification performed:
+- npm run check (browser scripts)
+- Node syntax checks for reward-related server API modules
+- Local references checked across HTML pages
+
+Deployment note:
+- This archive has not been deployed to Vercel or live-tested with real customer sessions. Review the site's existing environment variables and test sign-in/search/category routes on a preview deployment before publishing.
