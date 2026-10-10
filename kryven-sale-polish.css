@@ -271,3 +271,6 @@ button,input,textarea,select{font-family:var(--ke-font)}
  .ke-fest-orbit{width:128px}
 }
 @media(prefers-reduced-motion:reduce){.ke-category-tile,.ke-category-tile img,.ke-era-fest-primary,.ke-era-fest-secondary{transition:none}}
+/* Keep the Wear Your Era hero clean white, with no video background */
+.ke-white-hero{background:#fff!important;color:#111!important}
+.ke-white-hero .hero-media,.ke-white-hero video{display:none!important}

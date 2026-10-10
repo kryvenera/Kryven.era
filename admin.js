@@ -380,10 +380,7 @@ function settings(){
   <div class="form-section premium-panel"><h4>Brand & landing page</h4><div class="form-grid">
     <div class="field"><label>BRAND</label><input id="sBrand" value="${esc(s.brand)}"></div><div class="field"><label>TAGLINE</label><input id="sTag" value="${esc(s.tagline)}"></div>
     <div class="field"><label>HERO TITLE</label><input id="sHeroTitle" value="${esc(s.heroTitle)}"></div>
-    <div class="field"><label>HERO VIDEO URL / FILE</label><input id="sVideo" value="${esc(s.heroVideo||'')}"><small class="field-help">Temporary MP4 is preloaded. Replace this with another MP4 URL or file path.</small></div>
     <div class="field"><label>ADMIN PANEL LOGO URL / FILE</label><input id="sAdminLogo" value="${esc(s.adminLogo||'logo-icon.png')}"><small class="field-help">Used on the admin login and command-center header.</small></div>
-    <div class="field"><label>FULL-SITE BG VIDEO URL</label><input id="sBgVideo" value="${esc(s.backgroundVideo||'')}"></div>
-    <div class="field"><label>BG VIDEO</label><select id="sBgEnabled"><option value="0" ${s.backgroundVideoEnabled?'':'selected'}>OFF</option><option value="1" ${s.backgroundVideoEnabled?'selected':''}>ON</option></select></div>
     <div class="field" style="grid-column:1/-1"><label>SEARCH RECOMMENDATIONS</label><input id="sSearchSuggestions" value="${esc((s.searchSuggestions||[]).join(', '))}" placeholder="oversized t-shirt, black hoodie, cargo pants"><small class="field-help">Comma-separated suggestions shown when the customer taps the search bar.</small></div>
     <div class="field" style="grid-column:1/-1"><label>HERO TEXT</label><textarea id="sHeroText">${esc(s.heroText)}</textarea></div>
   </div></div>
@@ -427,8 +424,7 @@ window.toggleAdminPin=(id,btn)=>{const el=document.getElementById(id);if(!el)ret
 window.saveSettings=()=>{
   const s=ensureMerchandisingSettings(state.settings);
   s.brand=document.getElementById('sBrand').value.trim();s.tagline=document.getElementById('sTag').value.trim();s.heroTitle=document.getElementById('sHeroTitle').value.trim();
-  s.heroVideo=document.getElementById('sVideo').value.trim()||'kryven-era-hero-temp.mp4';s.heroVideoSeeded=true;s.adminLogo=document.getElementById('sAdminLogo').value.trim()||'logo-icon.png';
-  s.backgroundVideo=document.getElementById('sBgVideo').value.trim()||'kryven-era-hero-temp.mp4';s.backgroundVideoEnabled=true;
+  s.heroVideo='';s.heroVideoSeeded=true;s.backgroundVideo='';s.backgroundVideoEnabled=false;s.adminLogo=document.getElementById('sAdminLogo').value.trim()||'logo-icon.png';
   s.cashfreeQrImage=document.getElementById('sCashfreeQr')?.value.trim()||'';s.paymentVerifyEndpoint=document.getElementById('sPaymentVerify')?.value.trim()||'/api/upi/verify';s.heroText=document.getElementById('sHeroText').value.trim();
   s.whatsapp=document.getElementById('sWa').value.trim();s.upi=document.getElementById('sUpi').value.trim();s.shipping=Number(document.getElementById('sShip').value||0);s.supportText=document.getElementById('sHours').value.trim();
   s.searchSuggestions=(document.getElementById('sSearchSuggestions')?.value||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,12);
