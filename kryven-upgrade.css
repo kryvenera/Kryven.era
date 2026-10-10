@@ -67,3 +67,14 @@ body:before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;back
 .buy-now-btn{transition:all .2s ease;}
 .buy-now-btn.buy-now-disabled,.buy-now-btn:disabled{opacity:.48!important;cursor:not-allowed!important;filter:grayscale(.25);background:#b9b9b9!important;border-color:#b9b9b9!important;color:#fff!important;}
 .buy-now-btn.buy-now-ready{background:#c51f2a!important;border-color:#c51f2a!important;color:#fff!important;opacity:1!important;cursor:pointer!important;box-shadow:0 10px 24px rgba(197,31,42,.22);}
+
+
+/* POLISH 2026-10-10: icon sizing, keyboard focus, reduced motion */
+.icon-btn>svg{position:absolute;inset:0;margin:auto;width:17px;height:17px;pointer-events:none}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #161c19;outline-offset:2px}
+[id]{scroll-margin-top:84px}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .ke-entry-shine{display:none!important}
+}

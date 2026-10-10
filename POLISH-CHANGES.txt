@@ -1,0 +1,11 @@
+KRYVEN ERA - POLISH PASS (from the "vibe-coded look" video checklist)
+Changed:
+- Em dashes removed from page titles, footer copy, coupon message, empty-value placeholders.
+- Emoji icons (bag, help, sparkle) replaced with SVG icons.
+- Dev leftover removed from footer ("editable from the admin panel").
+- Generic hero/footer/meta copy rewritten with real product details.
+- Footer now links Privacy Policy and new Terms & Conditions (terms.html).
+- OG tags added on index.html.
+- Keyboard focus outline, anchor scroll offset, reduced-motion support.
+- Cache version strings bumped to 20261010-polish.
+NOT touched: api/*, vercel.json, checkout/payment logic, admin.js, Supabase/Cashfree settings, .env/.gitignore.
