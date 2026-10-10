@@ -1,5 +1,12 @@
 {
   "name": "kryven-era-storefront",
+  "version": "1.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node --check --input-type=commonjs < app.js && node --check --input-type=commonjs < admin.js && node --check --input-type=commonjs < auth-client.js && node --check --input-type=commonjs < promotions.js && node --check --input-type=commonjs < checkout-flow.js"
+  }
 }
