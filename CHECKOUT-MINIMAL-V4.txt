@@ -1,0 +1,28 @@
+KRYVEN ERA — MINIMAL + CASHFREE-CONFIRMED CHECKOUT (V4)
+
+WHAT CHANGED
+1. Landing page (index.html): clean header, one hero (video + headline + one button), 8 products, small footer.
+   Removed: category tiles, trust cards, limited strip, numbered labels, search bar, side notes, hover effects.
+   Styles live in kryven-minimal.css (also used by checkout.html and payment.html). Other pages are unchanged.
+2. Checkout (checkout.html): one page, two options.
+   - Pay online  -> full amount through Cashfree.
+   - Cash on delivery -> only the advance (Admin > Payments > COD %, default 20%) through Cashfree; the rest on delivery.
+   Every order needs a successful Cashfree payment. There is no way to place an order without paying.
+3. Order is confirmed ONLY by the server after Cashfree reports a successful payment for the full amount
+   (api/status.js after the customer returns, and api/webhook.js as a backup). The browser cannot mark an order paid.
+4. Amounts are computed on the server (api/_pricing.js) from the live catalog. The browser only sends product ids,
+   sizes, colours and quantities. A tampered amount is rejected. Stock, size and colour are validated too.
+5. The pending order is saved by the server before payment starts, so a paid order is never missing from Admin.
+   Status stays "Awaiting Payment Verification" until Cashfree confirms, then becomes "Placed" + paymentVerified.
+6. Refresh / back button reuse the same order id (no duplicate orders). Failed payment keeps the bag.
+7. If the customer returns in another browser (UPI apps often do), the confirmation page still works.
+8. /api/status no longer returns payer details, only a safe order summary.
+
+VERCEL VARIABLES (unchanged): CASHFREE_CLIENT_ID, CASHFREE_CLIENT_SECRET, CASHFREE_ENV, ADMIN_PIN
+Optional: SITE_URL, SUPABASE_SERVICE_ROLE_KEY
+
+NOTES
+- COD needs an advance of at least Rs 1. If the COD % in Admin is 0, the COD option is hidden at checkout.
+- The admin link was removed from the public home footer. Open /admin.html directly.
+- The "How did you find us?" first-visit popup still appears (it feeds the referral source).
+- Test once in CASHFREE_ENV=sandbox before going live.
