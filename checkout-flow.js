@@ -116,7 +116,7 @@ function pendingIdFor(signature){
 const resetPending=()=>{try{sessionStorage.removeItem(PENDING_KEY)}catch{}};
 
 function headerHTML(href,label){
-  return `<header class="mn-header"><div class="mn-bar"><a class="mn-logo" href="index.html" aria-label="KRYVEN ERA home"><img src="logo-primary.png" alt="KRYVEN ERA"></a><a class="mn-link" href="${href}">${label}</a></div></header>`;
+  return `<header class="mn-header"><div class="mn-bar"><a class="mn-logo" href="index.html" aria-label="KRYVEN ERA home"><img src="logo-primary.png" alt="KRYVEN ERA"></a><div class="mn-header-actions"><a class="mn-link" href="menu.html">Menu</a><a class="mn-link" href="${href}">${label}</a></div></div></header>`;
 }
 function fieldHTML(id,label,kind,value,opts={}){
   const required=opts.required?' required':'';
@@ -133,7 +133,7 @@ function checkoutHTML(){
   const q=quote(),d={...state.profile};for(const [k,v] of Object.entries(loadDraft()))if(v!==undefined&&v!==null&&String(v).trim()!=='')d[k]=v;const cod=!q.membershipOnly&&codAvailable(q);
   const items=q.lines.map(({x,p,qty,line})=>`<div class="ck-item"><img src="${esc(productImage(p,x))}" alt=""><div><b>${esc(productName(p,x))}</b><small>${esc(x.color||'')}${x.size?' · '+esc(x.size):''} · Qty ${qty}</small></div><span>${money(line)}</span></div>`).join('');
   const delivery=q.membershipOnly?`<section class="ck-section"><h2>Account details</h2><div class="ck-fields">${fieldHTML('coName','Full name','text',d.name,{full:true,ph:'Your name'})}${fieldHTML('coPhone','Mobile number','tel',d.phone,{ph:'10-digit number'})}${fieldHTML('coEmail','Email','email',d.email,{optional:true,ph:'name@example.com'})}</div><p class="ck-note">ERA PASS is digital and will be linked to your signed-in account. No delivery address is needed.</p></section>`:`<section class="ck-section"><h2>Delivery</h2><div class="ck-fields">${fieldHTML('coName','Full name','text',d.name,{full:true,ph:'Your name'})}${fieldHTML('coPhone','Mobile number','tel',d.phone,{ph:'10-digit number'})}${fieldHTML('coEmail','Email','email',d.email,{optional:true,ph:'name@example.com'})}${fieldHTML('coAddress','Address','textarea',d.address,{full:true,ph:'House, street, area'})}${fieldHTML('coLandmark','Landmark','text',d.landmark,{ph:'Nearby landmark'})}${fieldHTML('coHouse','House / building no.','text',d.houseNumber,{optional:true,ph:'Flat 402'})}${fieldHTML('coCity','City','text',d.city,{ph:'City'})}${fieldHTML('coState','State','text',d.state,{ph:'State'})}${fieldHTML('coPin','Pincode','text',d.pincode,{ph:'6 digits'})}</div></section>`;
-  const signed=!!window.KEAuth?.isSignedIn();
+  const signed=customerHasCheckoutAccount();
   return `${headerHTML('bag.html','Back to bag')}<main class="ck"><h1 class="ck-title">Checkout</h1>
   ${!signed?`<div class="ck-account-prompt"><span>Save your details, membership and one-use rewards to your account.</span><button type="button" onclick="KEAuth.open()">SIGN IN / CREATE ACCOUNT</button></div>`:''}
   <div class="ck-grid"><form class="ck-form" id="ckForm" novalidate>${delivery}
@@ -184,9 +184,13 @@ async function postOrder(payload){
 }
 
 let submitting=false;
+function customerHasCheckoutAccount(){
+  if(window.KEAuth?.isSignedIn?.()) return true;
+  try{const st=JSON.parse(localStorage.getItem(STATE_KEY)||'{}');const p=st.profile||{};return !!(st.account?.signedIn&&(p.name||p.email||p.phone||p.customerId));}catch{return false;}
+}
 async function submitPayment(ev){
   ev.preventDefault();
-  if(!window.KEAuth?.isSignedIn()){showError('Sign in or create your KRYVEN ERA account before checkout.');window.KEAuth?.open();return;}
+  if(!customerHasCheckoutAccount()){showError('Sign in or create your KRYVEN ERA account before checkout.');window.KEAuth?.open();return;}
   if(submitting)return;
   clearError();
   if(!validateAll())return;
@@ -195,7 +199,7 @@ async function submitPayment(ev){
   if(mode==='cod'&&!codAvailable(q)){showError('Cash on delivery is not available. Please pay online.');return}
   if(q.couponError){showError(q.couponError);return}
   if(selectedEraCoupon&&q.couponDiscount<=0){showError('This coupon does not apply to the current bag.');return}
-  if(isMembershipOnlyCart()&&!window.KEAuth?.isSignedIn()){showError('Sign in or create an account before purchasing the ERA PASS.');window.KEAuth?.open();return}
+  if(isMembershipOnlyCart()&&!customerHasCheckoutAccount()){showError('Sign in or create an account before purchasing the ERA PASS.');window.KEAuth?.open();return}
   submitting=true;setBusy(true,'Preparing payment…');
   try{
     if(window.KEAuth?.isSignedIn()){const c=state.profile;try{await window.KEAuth.authFetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:c.name,phone:c.phone,address:c.address,landmark:c.landmark,houseNumber:c.houseNumber,city:c.city,state:c.state,pincode:c.pincode})})}catch(e){throw new Error('We could not save your details to your account. Please check your connection and try again.')} }
@@ -300,8 +304,8 @@ async function renderPayment(){
 }
 
 window.removeEraCheckoutCoupon=()=>{selectedEraCoupon=null;eraCouponError='';try{localStorage.removeItem(ERA_COUPON_KEY)}catch{};renderCheckout()};
-window.applyEraCheckoutCoupon=async()=>{const input=$('ckCouponCode'),msg=$('ckCouponMessage');if(!input||!msg)return;const code=input.value.trim().toUpperCase();if(!code){window.removeEraCheckoutCoupon();msg.textContent='Enter a code first.';return}if(!window.KEAuth?.isSignedIn()){eraCouponError='Sign in before using follower and reward codes.';msg.textContent=eraCouponError;window.KEAuth?.open();return}msg.textContent='Checking code…';const b=$('ckCouponApply');if(b)b.disabled=true;try{const r=await window.KEAuth.authFetch('/api/coupon-check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'Could not verify this code.');selectedEraCoupon=data;eraCouponError='';localStorage.setItem(ERA_COUPON_KEY,data.code);renderCheckout();const m=$('ckCouponMessage');if(m)m.textContent=`${data.code} verified. The saving shown in your order summary will be checked again by the server.`}catch(e){selectedEraCoupon=null;try{localStorage.removeItem(ERA_COUPON_KEY)}catch{};eraCouponError=e.message||'Coupon verification failed.';renderCheckout();const m=$('ckCouponMessage');if(m)m.textContent=eraCouponError}finally{const apply=$('ckCouponApply');if(apply)apply.disabled=false}};
-async function loadAccountPricing(){eraMembershipActive=false;selectedEraCoupon=null;eraCouponError='';if(!window.KEAuth?.isSignedIn())return;try{const r=await window.KEAuth.authFetch('/api/rewards',{cache:'no-store'});const d=await r.json().catch(()=>({}));if(r.ok)eraMembershipActive=!!d.membershipActive;}catch(e){console.warn('membership status unavailable',e)}const stored=localStorage.getItem(ERA_COUPON_KEY);if(stored){try{const r=await window.KEAuth.authFetch('/api/coupon-check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:stored})});const d=await r.json().catch(()=>({}));if(r.ok)selectedEraCoupon=d;else{localStorage.removeItem(ERA_COUPON_KEY);eraCouponError=d.error||'Your saved code is no longer available.'}}catch(e){eraCouponError='Could not verify your saved coupon. Apply it again at checkout.'}}}
+window.applyEraCheckoutCoupon=async()=>{const input=$('ckCouponCode'),msg=$('ckCouponMessage');if(!input||!msg)return;const code=input.value.trim().toUpperCase();if(!code){window.removeEraCheckoutCoupon();msg.textContent='Enter a code first.';return}if(!customerHasCheckoutAccount()){eraCouponError='Sign in before using follower and reward codes.';msg.textContent=eraCouponError;window.KEAuth?.open();return}msg.textContent='Checking code…';const b=$('ckCouponApply');if(b)b.disabled=true;try{const r=await window.KEAuth.authFetch('/api/coupon-check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'Could not verify this code.');selectedEraCoupon=data;eraCouponError='';localStorage.setItem(ERA_COUPON_KEY,data.code);renderCheckout();const m=$('ckCouponMessage');if(m)m.textContent=`${data.code} verified. The saving shown in your order summary will be checked again by the server.`}catch(e){selectedEraCoupon=null;try{localStorage.removeItem(ERA_COUPON_KEY)}catch{};eraCouponError=e.message||'Coupon verification failed.';renderCheckout();const m=$('ckCouponMessage');if(m)m.textContent=eraCouponError}finally{const apply=$('ckCouponApply');if(apply)apply.disabled=false}};
+async function loadAccountPricing(){eraMembershipActive=false;selectedEraCoupon=null;eraCouponError='';if(!customerHasCheckoutAccount())return;try{const r=await window.KEAuth.authFetch('/api/rewards',{cache:'no-store'});const d=await r.json().catch(()=>({}));if(r.ok)eraMembershipActive=!!d.membershipActive;}catch(e){console.warn('membership status unavailable',e)}const stored=localStorage.getItem(ERA_COUPON_KEY);if(stored){try{const r=await window.KEAuth.authFetch('/api/coupon-check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:stored})});const d=await r.json().catch(()=>({}));if(r.ok)selectedEraCoupon=d;else{localStorage.removeItem(ERA_COUPON_KEY);eraCouponError=d.error||'Your saved code is no longer available.'}}catch(e){eraCouponError='Could not verify your saved coupon. Apply it again at checkout.'}}}
 async function initializeCheckout(){saveState();await loadLiveCatalogForCheckout();await loadAccountPricing();renderCheckout()}
 if(document.body.dataset.page==='checkout-standalone'){initializeCheckout();window.addEventListener('ke:auth-updated',async()=>{await loadAccountPricing();renderCheckout()});window.addEventListener('ke:auth',async e=>{if(!e.detail?.session){await loadAccountPricing();renderCheckout()}})}
 else if(document.body.dataset.page==='payment-standalone'){renderPayment()}

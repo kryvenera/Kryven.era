@@ -181,7 +181,7 @@ function brandSaleHeader(){
     <form class="ke-global-search" role="search" aria-label="Search KRYVEN ERA products" onsubmit="event.preventDefault();location.href='search.html?q='+encodeURIComponent(this.querySelector('input').value.trim())">
       <span class="ke-search-glass" aria-hidden="true">⌕</span><input id="topSearch" type="search" name="q" value="${esc(query)}" autocomplete="off" placeholder="Search T-shirts, hoodies, pants and more…" onfocus="renderSearchOverlay('')" oninput="search(this.value)" aria-label="Search products"><button type="submit" aria-label="Submit search">SEARCH</button>
     </form>
-    <div class="ke-header-actions"><a href="#" class="ke-account-link" onclick="event.preventDefault();openProfile()" title="${signed?'Customer ID: '+rawId:'Sign in or create an account'}"><span class="ke-account-icon" aria-hidden="true">♙</span><span class="ke-account-copy"><strong>${signed?'MY ACCOUNT':'SIGN IN / JOIN'}</strong><small>${signed?'ID · '+esc(visibleId):'Save details & rewards'}</small></span></a><button class="ke-bag-link" type="button" onclick="openBag()" aria-label="Open bag"><span class="ke-bag-icon" aria-hidden="true">▱</span><span>BAG</span><b>${total||0}</b></button></div>
+    <div class="ke-header-actions"><a href="menu.html" class="ke-menu-link" aria-label="Open menu"><span aria-hidden="true">☰</span><strong>MENU</strong></a><a href="#" class="ke-account-link" onclick="event.preventDefault();openProfile()" title="${signed?'Customer ID: '+rawId:'Sign in or create an account'}"><span class="ke-account-icon" aria-hidden="true">♙</span><span class="ke-account-copy"><strong>${signed?'MY ACCOUNT':'SIGN IN / JOIN'}</strong><small>${signed?'ID · '+esc(visibleId):'Save details & rewards'}</small></span></a><button class="ke-bag-link" type="button" onclick="location.href='bag.html'" aria-label="Open full shopping bag"><span class="ke-bag-icon" aria-hidden="true">▱</span><span>BAG</span><b>${total||0}</b></button></div>
   </div><nav class="ke-category-nav" aria-label="Shop categories"><a href="shop.html?category=T-Shirts">T-SHIRTS</a><a href="shop.html?category=Hoodies">HOODIES</a><a href="shop.html?category=Pants">PANTS</a><a href="shop.html?category=Jackets">JACKETS</a><a href="shop.html?category=Accessories">ACCESSORIES</a><span class="ke-category-divider"></span><a class="ke-category-special" href="offers.html">ALL OFFERS</a><a class="ke-category-special" href="membership.html">ERA PASS</a><a class="ke-category-special" href="rewards.html">SPIN & WIN</a></nav></header>`;
 }
 function header(){return brandSaleHeader()}
@@ -356,7 +356,7 @@ window.quickAddToBag=(id)=>{
   window.__quickSize=''; window.__quickColor=colors[0]||'Black';
 };
 window.addQuickSelection=(id)=>{if(!window.__quickSize){toast('Please select an available size');return}addToBag(id,window.__quickSize,window.__quickColor||'Black');closeModal();};
-function openBag(){const rows=state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-item"><img src="${p.images[0]}"/><div><b>${esc(p.name)}</b><div class="muted" style="margin-top:4px">${x.color} · ${x.size}</div><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join('');const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0);openDrawer(`<div class="drawer-head"><h3>Your Bag (${totalItems()})</h3><button class="drawer-close" onclick="closeDrawer()">×</button></div>${rows||`<div class="muted" style="padding:40px 0;text-align:center">Your bag is waiting for its first piece.</div>`}<div class="drawer-foot">${state.cart.length?`<div class="totals"><div><span>Subtotal</span><span>${money(sub)}</span></div><div><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div><span>Total</span><span>${money(sub+state.settings.shipping)}</span></div></div><button class="btn primary" style="width:100%" onclick="closeDrawer();openCheckout()">Proceed to Checkout →</button>`:''}</div>`)}
+function openBag(){location.href='bag.html'}
 window.openBag=openBag; window.changeQty=changeQty;
 
 function getCustomerId(){
@@ -706,9 +706,7 @@ function bagPage(){
 function mnSoldOut(p){const z=p.sizes&&typeof p.sizes==='object'?Object.values(p.sizes):[];return z.length>0&&z.every(v=>!v)}
 function mnHeader(){return brandSaleHeader()}
 function mnHero(){
-  const hv=(state.settings.heroVideo||DEFAULT_HERO_VIDEO).trim()||DEFAULT_HERO_VIDEO;
-  return `<section class="mn-hero" aria-label="Welcome"><div class="mn-hero-bg" style="background-image:url('${IMG.hero}')"></div><video class="mn-hero-video" autoplay muted loop playsinline preload="auto" poster="${IMG.hero}" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='kryven-era-hero-temp.mp4';this.play().catch(()=>{})}else{this.style.display='none'}" src="${esc(hv)}"></video>
-  <div class="mn-hero-copy"><h1>Wear your era.</h1><p>Heavyweight streetwear in black, silver and gold.</p><a class="mn-cta" href="shop.html">Shop the collection</a></div></section>`;
+  return `<section class="mn-hero mn-hero-static" aria-label="Welcome"><div class="mn-hero-bg" style="background-image:url('${IMG.hero}')"></div><div class="mn-hero-copy"><h1>Wear your era.</h1><p>Heavyweight streetwear in black, silver and gold.</p><a class="mn-cta" href="shop.html">Shop the collection</a></div></section>`;
 }
 function mnCategories(){
   const cats=[{name:'T-Shirts',fallback:IMG.tshirt},{name:'Hoodies',fallback:IMG.hoodie},{name:'Pants',fallback:IMG.pants},{name:'Jackets',fallback:IMG.jacket},{name:'Accessories',fallback:IMG.cap}];

@@ -1,0 +1,23 @@
+KRYVEN ERA — MOBILE LAYOUT / AUTH FIX
+12 October 2026
+
+Changes in this update:
+- Removed the landing-page hero background video element; the hero now uses a static image background.
+- Hid the horizontal category navigation strip beneath the header.
+- Added a visible MENU link in the main storefront header and in the standalone checkout header.
+- Bag button now navigates to bag.html instead of opening a side drawer; legacy openBag calls also navigate to the full bag page.
+- Added responsive bag layout rules so the order summary stacks below items on mobile and product rows do not overflow horizontally.
+- Fixed malformed literal \\1 script fragments from the previous archive.
+- Loaded auth-client.js before storefront/checkout logic on customer pages.
+- Checkout account prompt and submit guard now recognize the storefront's existing signed-in account state as well as Supabase Auth state, avoiding the reported false sign-in error when local account state is present.
+
+Verification performed:
+- npm run check passed (app.js, admin.js, auth-client.js, promotions.js, checkout-flow.js syntax checks).
+- Additional Node.js syntax checks passed for kryven-era-next.js.
+- HTML parsing passed for all HTML files; no literal \\1 fragments and no missing local script references were found.
+- ZIP integrity test passed.
+
+Not yet verified on the live domain:
+- Actual mobile rendering across devices/browsers.
+- Supabase live session refresh and account state reconciliation.
+- Real Cashfree payment, webhook verification, and successful order confirmation.

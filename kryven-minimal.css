@@ -128,3 +128,16 @@ body[data-page="home"] .ke-enter-glow{animation:none!important}
   .mn-meta{flex-direction:column;gap:2px}
 }
 @media(prefers-reduced-motion:reduce){.mn-img img{transition:none}.mn-card:hover .mn-img img{transform:none}}
+
+/* October 12 mobile bug-fix layer */
+.ke-header-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.ke-menu-link{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 13px;border:1px solid rgba(20,20,20,.18);border-radius:999px;background:#fff;color:#171918;font-size:11px;letter-spacing:.08em;font-weight:800;white-space:nowrap}
+.ke-menu-link span{font-size:18px;line-height:1}
+.ke-store-header .ke-category-nav{display:none!important}
+.mn-hero-static .mn-hero-bg{position:absolute;inset:0;background-size:cover;background-position:center}
+.mn-hero-static .mn-hero-copy{position:relative;z-index:2}
+.mn-hero-static:after{z-index:1}
+.bag-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.72fr);gap:clamp(18px,4vw,42px);align-items:start;width:100%;max-width:100%}
+.bag-list{min-width:0;width:100%}.bag-line{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:14px;align-items:center;padding:18px 0;border-bottom:1px solid var(--line);min-width:0}.bag-line img{width:96px;height:116px;object-fit:cover;border-radius:12px}.bag-line-main{min-width:0;overflow-wrap:anywhere}.bag-line h3{margin:4px 0;font-size:clamp(15px,2vw,19px)}.bag-summary{min-width:0;position:relative;top:auto}.page-main{min-width:0;overflow:visible}.bag-layout *{max-width:100%}
+@media(max-width:760px){.ke-header-main{gap:10px;flex-wrap:wrap}.ke-global-search{order:3;flex:0 0 100%;width:100%;max-width:none}.ke-header-actions{gap:6px}.ke-menu-link{min-height:38px;padding:0 9px;font-size:10px}.ke-account-link .ke-account-copy small{max-width:92px;overflow:hidden;text-overflow:ellipsis}.ke-bag-link{white-space:nowrap}.bag-layout{grid-template-columns:minmax(0,1fr);gap:20px}.bag-line{grid-template-columns:76px minmax(0,1fr) auto;gap:10px}.bag-line img{width:76px;height:96px}.bag-summary{width:100%}.page-main{width:min(1180px,92vw);padding-left:0;padding-right:0}}
+@media(max-width:380px){.ke-account-link .ke-account-copy{display:none}.ke-menu-link strong{display:none}.ke-menu-link{width:38px;padding:0}.bag-line{grid-template-columns:64px minmax(0,1fr) auto}.bag-line img{width:64px;height:84px}}

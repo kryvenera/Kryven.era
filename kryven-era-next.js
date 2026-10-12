@@ -7,11 +7,16 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const toast = msg => { const t=document.getElementById('toast'); if(t){t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);} };
 
-  // Mandatory sign-in gate for customer-facing store pages. Admin remains separate.
+  // Mandatory sign-in gate. Recognize either Supabase Auth or the storefront's existing signed-in account state.
+  function hasCustomerAccount(){
+    if(window.KEAuth?.isSignedIn?.()) return true;
+    try{const st=JSON.parse(localStorage.getItem('kryven-era-state-v3')||'{}');const p=st.profile||{};return !!(st.account?.signedIn&&(p.name||p.email||p.phone||p.customerId));}catch{return false;}
+  }
   function enforceSignIn() {
-    if (!AUTH_PAGES.has(path) || !window.KEAuth) return;
+    if (!AUTH_PAGES.has(path)) return;
     const gate = () => {
-      if (window.KEAuth.isSignedIn()) return;
+      if (hasCustomerAccount()) return;
+      if(!window.KEAuth){return;}
       window.KEAuth.open();
       const lock = () => {
         const overlay=document.getElementById('keAuthOverlay');
@@ -21,7 +26,7 @@
         if(close) close.style.display='none';
         overlay.style.zIndex='999999';
         overlay.onclick=e=>{ if(e.target===overlay) e.stopPropagation(); };
-        document.onkeydown=e=>{ if(e.key==='Escape'&&!window.KEAuth.isSignedIn()) e.preventDefault(); };
+        document.onkeydown=e=>{ if(e.key==='Escape'&&!hasCustomerAccount()) e.preventDefault(); };
       };
       lock(); setTimeout(lock,80); setTimeout(lock,350);
     };
