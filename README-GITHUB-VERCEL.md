@@ -41,3 +41,18 @@ These features use the Supabase project already configured in this storefront.
 6. The 30% next-order coupon is issued only for an order linked to the same account, marked Delivered, and with a verified successful payment. It is one-use and expires according to the Admin setting. Spin rewards reserved during checkout are released if payment fails, and can be retried after a 30-minute abandoned-checkout reservation window.
 
 `SUPABASE_SERVICE_ROLE_KEY` is required for the new private tables. Without it (or if the SQL is not run), rewards, memberships and one-time coupon redemption will fail closed; do not launch paid traffic until the setup is complete and tested. A live Cashfree checkout cannot be validated from this ZIP alone—test one low-value order in the configured Cashfree environment after deployment.
+
+
+## October 12 customer experience update
+
+- Customer-facing storefront pages now require a signed-in customer account. Admin access remains separate.
+- Checkout includes an interactive OpenStreetMap pin picker. Customers can tap/drag a pin or request browser location permission; selecting a pin attempts reverse geocoding into address fields. Customers must review the filled address before ordering.
+- Referral query parameters `?ref=CODE`, `?referral=CODE`, and `?ref_code=CODE` are captured in the browser so the signup/referral flow can use the code.
+- Customer pages use the supplied `logo-icon.png` as the favicon.
+- The existing membership, offers, order and Cashfree code has been preserved.
+
+### Important launch checks
+1. The map picker loads Leaflet and map tiles from public OpenStreetMap endpoints and uses Nominatim reverse geocoding. These are third-party services and are subject to their availability and usage policies. Always let customers edit and verify the address.
+2. Referral rewards are not automatically paid just because a referral URL was opened. Configure the existing Supabase ERA rewards schema and implement/verify the referral conversion rules and abuse controls before advertising cash rewards.
+3. Sign-in depends on the configured Supabase Auth provider, email confirmation settings and production redirect URLs.
+4. Upload the ZIP contents to the repository root and redeploy on Vercel. Run `npm run check` and test signup/sign-in, map address selection, COD, Cashfree payment verification, order cancellation, and admin order visibility on the live domain.

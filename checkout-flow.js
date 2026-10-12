@@ -186,6 +186,7 @@ async function postOrder(payload){
 let submitting=false;
 async function submitPayment(ev){
   ev.preventDefault();
+  if(!window.KEAuth?.isSignedIn()){showError('Sign in or create your KRYVEN ERA account before checkout.');window.KEAuth?.open();return;}
   if(submitting)return;
   clearError();
   if(!validateAll())return;

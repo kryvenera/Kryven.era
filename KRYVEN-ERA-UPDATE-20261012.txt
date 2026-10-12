@@ -1,0 +1,18 @@
+KRYVEN ERA UPDATE — 12 OCTOBER 2026
+===================================
+
+Included:
+- New premium checkout map-picker UI using Leaflet + OpenStreetMap.
+- Browser location permission button, draggable/clickable map pin, reverse-geocoding into address fields.
+- Mandatory customer sign-in gate on customer-facing pages and an additional checkout submit guard.
+- Captures referral code query parameters in local storage for later signup/reward processing.
+- Referral & Earn entry added beside existing rewards links where those links appear.
+- Supplied logo-icon.png set as favicon on customer-facing pages.
+- Existing app, admin, Cashfree APIs, products and offers retained.
+
+Before launch:
+- Test in the deployed site; browser geolocation requires HTTPS and customer permission.
+- Map/reverse-geocoding services are external public endpoints and can rate-limit or change availability.
+- Referral URL capture is not the same as a complete fraud-resistant referral payout system. Confirm Supabase schema, reward eligibility, order-success trigger, payout rules and admin controls before promising or paying rewards.
+- Customer account authentication depends on Supabase Auth configuration.
+- This ZIP does not validate live Cashfree transactions; complete a low-value end-to-end test after deployment.
