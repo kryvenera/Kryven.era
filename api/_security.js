@@ -54,3 +54,13 @@ export function safeEqual(a, b){
   const y = crypto.createHash('sha256').update(String(b)).digest();
   return crypto.timingSafeEqual(x, y);
 }
+
+// Verifies the signed token issued by /api/admin-login (HMAC + expiry).
+export function verifyAdminToken(token){
+  const secret = process.env.ADMIN_TOKEN_SECRET || process.env.ADMIN_PIN || '';
+  const [payload, sig] = String(token || '').split('.');
+  if(!secret || !payload || !sig) return false;
+  const expected = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  if(!safeEqual(sig, expected)) return false;
+  try{ return Number(JSON.parse(Buffer.from(payload, 'base64url').toString()).exp) > Date.now(); }catch{ return false; }
+}
