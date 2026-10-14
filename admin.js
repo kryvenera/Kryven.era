@@ -21,6 +21,31 @@ async function uploadToCloudinary(file){
   return data.secure_url;
 }
 
+async function uploadVideoToCloudinary(file){
+  const form = new FormData();
+  form.append('file', file);
+  form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`, {method:'POST',body:form});
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data?.error?.message || `Video upload failed (${res.status})`);
+  if(!data?.secure_url) throw new Error('Cloudinary did not return a video URL');
+  return data.secure_url;
+}
+window.uploadSiteVideo = async (input)=>{
+  const file = input?.files?.[0]; if(!file) return;
+  const status = document.getElementById('bgVideoStatus'), field = document.getElementById('sBgVideo');
+  if(file.size > 95*1024*1024){ if(status) status.textContent='Video is too large (max ~95 MB). Please compress it.'; input.value=''; return; }
+  try{
+    if(status) status.textContent = `Uploading ${(file.size/1048576).toFixed(1)} MB… please wait`;
+    const url = await uploadVideoToCloudinary(file);
+    if(field) field.value = url;
+    const en = document.getElementById('sBgVideoOn'); if(en) en.value='1';
+    if(status) status.textContent = 'Uploaded ✓ — now press SAVE WEBSITE';
+    toast('Video uploaded — press SAVE WEBSITE');
+  }catch(e){ if(status) status.textContent = `Upload failed: ${e.message||'error'}`; toast('Video upload failed'); }
+  finally{ input.value=''; }
+};
+
 window.uploadProductImages = async (input)=>{
   const files = Array.from(input?.files || []);
   if(!files.length) return;
@@ -240,10 +265,10 @@ window.auth=async()=>{const entered=String(document.getElementById('pin')?.value
 function renderBody(){
   if(!isAuthed()){login();return}
   const delivered=(state.orders||[]).filter(o=>o.status==='Delivered').length;
-  document.getElementById('adminBody').innerHTML=`<div class="admin-layout"><aside class="side premium-side"><div class="side-title">CONTROL</div>${[['dashboard','Dashboard'],['orders','Orders'],['products','Products'],['customers','Customers'],['membership','ERA Pass'],['rewards','Spin Wheel'],['coupons','Follower Coupons'],['drops','Limited Drops'],['settings','Store editor'],['payments','Payments'],['reviews','Reviews'],['search','Search & barcode']].map(([id,t])=>`<button class="${active===id?'active':''}" onclick="go('${id}')"><span>${t}</span>${id==='orders'?`<em>${state.orders.length}</em>`:''}</button>`).join('')}<div class="side-divider"></div><div class="side-mini"><span>DELIVERED</span><b>${delivered}</b></div><button onclick="sessionStorage.removeItem('ke-admin-auth');renderBody()">Logout</button></aside><section class="admin-main">${section()}</section></div>`;
+  document.getElementById('adminBody').innerHTML=`<div class="admin-layout"><aside class="side premium-side"><div class="side-title">CONTROL</div>${[['dashboard','Dashboard'],['orders','Orders'],['products','Products'],['customers','Customers'],['membership','ERA Pass'],['memreq','Membership Requests'],['rewards','Spin Wheel'],['coupons','Follower Coupons'],['drops','Limited Drops'],['settings','Store editor'],['payments','Payments'],['reviews','Reviews'],['search','Search & barcode']].map(([id,t])=>`<button class="${active===id?'active':''}" onclick="go('${id}')"><span>${t}</span>${id==='orders'?`<em>${state.orders.length}</em>`:''}</button>`).join('')}<div class="side-divider"></div><div class="side-mini"><span>DELIVERED</span><b>${delivered}</b></div><button onclick="sessionStorage.removeItem('ke-admin-auth');renderBody()">Logout</button></aside><section class="admin-main">${section()}</section></div>`;
 }
 window.go=id=>{active=id;renderBody()}
-function section(){switch(active){case'orders':return orders();case'order-detail':return orderDetailPage(selectedOrder);case'products':return products();case'membership':return membershipSettings();case'rewards':return rewardsSettings();case'coupons':return couponSettings();case'drops':return limitedDropSettings();case'settings':return settings();case'payments':return payments();case'customers':return customers();case'reviews':return reviews();case'search':return searchPanel();default:return dashboard()}}
+function section(){switch(active){case'orders':return orders();case'order-detail':return orderDetailPage(selectedOrder);case'products':return products();case'membership':return membershipSettings();case'memreq':return membershipRequestsPage();case'rewards':return rewardsSettings();case'coupons':return couponSettings();case'drops':return limitedDropSettings();case'settings':return settings();case'payments':return payments();case'customers':return customers();case'reviews':return reviews();case'search':return searchPanel();default:return dashboard()}}
 
 function dashboard(){
   const total=state.orders.reduce((n,o)=>n+Number(o.total||0),0);
@@ -381,6 +406,7 @@ function settings(){
     <div class="field"><label>BRAND</label><input id="sBrand" value="${esc(s.brand)}"></div><div class="field"><label>TAGLINE</label><input id="sTag" value="${esc(s.tagline)}"></div>
     <div class="field"><label>HERO TITLE</label><input id="sHeroTitle" value="${esc(s.heroTitle)}"></div>
     <div class="field"><label>ADMIN PANEL LOGO URL / FILE</label><input id="sAdminLogo" value="${esc(s.adminLogo||'logo-icon.png')}"><small class="field-help">Used on the admin login and command-center header.</small></div>
+    <div class="field" style="grid-column:1/-1"><label>WEBSITE BACKGROUND VIDEO (FULL SITE)</label><div style="display:grid;gap:8px"><input id="sBgVideo" placeholder="Paste a video link, or upload below — Cloudinary link fills automatically" value="${esc(state.settings.backgroundVideo||'')}"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><select id="sBgVideoOn" style="max-width:170px"><option value="1" ${state.settings.backgroundVideoEnabled&&state.settings.backgroundVideo?'selected':''}>VIDEO ON</option><option value="0" ${state.settings.backgroundVideoEnabled&&state.settings.backgroundVideo?'':'selected'}>VIDEO OFF</option></select><input type="file" accept="video/mp4,video/webm,video/quicktime" onchange="uploadSiteVideo(this)"><small id="bgVideoStatus" class="field-help">MP4 recommended, under 95 MB. It plays softly behind every page.</small></div></div></div>
     <div class="field" style="grid-column:1/-1"><label>SEARCH RECOMMENDATIONS</label><input id="sSearchSuggestions" value="${esc((s.searchSuggestions||[]).join(', '))}" placeholder="oversized t-shirt, black hoodie, cargo pants"><small class="field-help">Comma-separated suggestions shown when the customer taps the search bar.</small></div>
     <div class="field" style="grid-column:1/-1"><label>HERO TEXT</label><textarea id="sHeroText">${esc(s.heroText)}</textarea></div>
   </div></div>
@@ -424,7 +450,7 @@ window.toggleAdminPin=(id,btn)=>{const el=document.getElementById(id);if(!el)ret
 window.saveSettings=()=>{
   const s=ensureMerchandisingSettings(state.settings);
   s.brand=document.getElementById('sBrand').value.trim();s.tagline=document.getElementById('sTag').value.trim();s.heroTitle=document.getElementById('sHeroTitle').value.trim();
-  s.heroVideo='';s.heroVideoSeeded=true;s.backgroundVideo='';s.backgroundVideoEnabled=false;s.adminLogo=document.getElementById('sAdminLogo').value.trim()||'logo-icon.png';
+  s.heroVideo='';s.heroVideoSeeded=true;s.backgroundVideo=(document.getElementById('sBgVideo')?.value||'').trim();s.backgroundVideoEnabled=document.getElementById('sBgVideoOn')?.value==='1'&&!!s.backgroundVideo;s.adminLogo=document.getElementById('sAdminLogo').value.trim()||'logo-icon.png';
   s.cashfreeQrImage=document.getElementById('sCashfreeQr')?.value.trim()||'';s.paymentVerifyEndpoint=document.getElementById('sPaymentVerify')?.value.trim()||'/api/upi/verify';s.heroText=document.getElementById('sHeroText').value.trim();
   s.whatsapp=document.getElementById('sWa').value.trim();s.upi=document.getElementById('sUpi').value.trim();s.shipping=Number(document.getElementById('sShip').value||0);s.supportText=document.getElementById('sHours').value.trim();
   s.searchSuggestions=(document.getElementById('sSearchSuggestions')?.value||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,12);
@@ -471,6 +497,33 @@ window.saveMembershipSettings=()=>{
  const m=ensureMerchandisingSettings(state.settings).membership;
  m.enabled=document.getElementById('memEnabled').value==='1';m.price=Math.max(1,Math.min(100000,Number(document.getElementById('memPrice').value||69)));m.durationDays=Math.max(1,Math.min(3650,Number(document.getElementById('memDays').value||90)));m.memberPricePercent=Math.max(0,Math.min(100,Number(document.getElementById('memPercent').value===''?60:document.getElementById('memPercent').value)));m.bundleEnabled=document.getElementById('memBundleEnabled').checked;m.memberPricingEnabled=document.getElementById('memShowPrice').checked;m.eligibleProductIds=(document.getElementById('memEligibleIds').value||'').split(',').map(x=>x.trim()).filter(Boolean);m.tshirtPositionPercents=[1,2,3,4,5].map(i=>Math.max(0,Math.min(100,Number(document.getElementById('memTier'+i).value||0))));m.productMemberPrices={};state.products.filter(p=>String(p.category||'').toLowerCase().includes('t-shirt')).forEach(p=>{const v=document.getElementById('memberPrice_'+p.id)?.value;if(v!==undefined&&v!==''&&Number(v)>=0)m.productMemberPrices[p.id]=Math.round(Number(v)*100)/100});state.settings.membership=m;save();toast('ERA Pass settings saved');renderBody()
 };
+
+// ---------- Membership requests + personal codes ----------
+let memReqData={requests:[],codes:[],loaded:false,error:''};
+async function memApi(method,body){
+  const r=await fetch('/api/admin-membership',{method,headers:{'Content-Type':'application/json','x-admin-token':sessionStorage.getItem('ke-admin-token')||''},body:body?JSON.stringify(body):undefined,cache:'no-store'});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Request failed');return d;
+}
+async function loadMemReq(){
+  try{const d=await memApi('GET');memReqData={requests:d.requests||[],codes:d.codes||[],loaded:true,error:''}}
+  catch(e){memReqData.error=e.message;memReqData.loaded=true}
+  const box=document.getElementById('memReqBox');if(box)box.innerHTML=memReqHtml();
+}
+function memReqHtml(){
+  const d=memReqData;if(!d.loaded)return '<div class="admin-note">Loading…</div>';
+  if(d.error)return `<div class="admin-note" style="color:#a02a2a">${esc(d.error)}<br>Run SUPABASE-MEMBERSHIP-CHANCE-SETUP.sql in Supabase once, then refresh.</div>`;
+  const codes=d.codes.map(c=>`<tr><td><b>${esc(c.code)}</b><small class="field-help">${esc(c.note||'')}</small></td><td>${Number(c.uses)}/${Number(c.max_uses)} used</td><td><button class="btn danger" onclick="memDeleteCode('${esc(c.code)}')">DELETE</button></td></tr>`).join('')||'<tr><td colspan="3">No codes yet. Create one above and give it to a customer.</td></tr>';
+  const reqs=d.requests.map(r=>`<tr><td><b>${esc(r.name||'—')}</b><small class="field-help">${esc(r.email||'')}</small></td><td>${esc(r.phone||'—')}</td><td>${esc(r.code)}</td><td>${new Date(r.created_at).toLocaleString('en-IN')}</td><td><span class="chip ${r.status==='pending'?'gold':''}">${esc(r.status.toUpperCase())}</span></td><td>${r.status==='pending'?`<button class="btn primary" onclick="memDecide('${r.id}','grant')">GIVE MEMBERSHIP</button> <button class="btn" onclick="memDecide('${r.id}','reject')">REJECT</button>`:'—'}</td></tr>`).join('')||'<tr><td colspan="6">No requests yet.</td></tr>';
+  return `<div class="form-section premium-panel"><h4>Personal membership codes</h4><p class="muted">Create a code, give it to one customer. When they enter it on the Offers page, their details appear below.</p><div class="form-grid"><div class="field"><label>CODE</label><input id="memCodeNew" placeholder="e.g. ERA-RAHUL-01" style="text-transform:uppercase"></div><div class="field"><label>NOTE (WHO IS IT FOR)</label><input id="memCodeNote" placeholder="Rahul – Instagram giveaway"></div><div class="field"><label>MAX USES</label><input id="memCodeMax" type="number" min="1" value="1"></div><div class="field"><label>&nbsp;</label><button class="btn primary" onclick="memAddCode()">ADD CODE</button></div></div><div style="overflow:auto;margin-top:14px"><table class="table premium-table"><thead><tr><th>CODE</th><th>USAGE</th><th></th></tr></thead><tbody>${codes}</tbody></table></div></div>
+  <div class="form-section premium-panel"><h4>Customer requests (${d.requests.filter(r=>r.status==='pending').length} pending)</h4><div style="overflow:auto"><table class="table premium-table"><thead><tr><th>CUSTOMER</th><th>PHONE</th><th>CODE</th><th>WHEN</th><th>STATUS</th><th>ACTION</th></tr></thead><tbody>${reqs}</tbody></table></div></div>`;
+}
+function membershipRequestsPage(){
+  setTimeout(loadMemReq,30);
+  return `<div class="section-head"><div><div class="eyebrow">OFFERS / CHANCE TO MEMBERSHIP</div><h2>Membership requests.</h2><p class="muted">Customers who enter your personal code appear here. Press “Give membership” to activate their ERA PASS.</p></div><button class="btn" onclick="memReqData.loaded=false;go('memreq')">REFRESH</button></div><div id="memReqBox">${memReqHtml()}</div>`;
+}
+window.memAddCode=async()=>{try{await memApi('POST',{action:'addCode',code:document.getElementById('memCodeNew').value,note:document.getElementById('memCodeNote').value,maxUses:document.getElementById('memCodeMax').value});toast('Code added');loadMemReq()}catch(e){toast(e.message)}};
+window.memDeleteCode=async c=>{if(!confirm('Delete code '+c+'?'))return;try{await memApi('POST',{action:'deleteCode',code:c});loadMemReq()}catch(e){toast(e.message)}};
+window.memDecide=async(id,action)=>{if(action==='grant'&&!confirm('Give 90-day ERA PASS to this customer?'))return;try{await memApi('POST',{action,id,days:Number(state.settings?.membership?.durationDays)||90});toast(action==='grant'?'Membership activated ✓':'Request rejected');loadMemReq()}catch(e){toast(e.message)}};
 function rewardsSettings(){
  const w=ensureMerchandisingSettings(state.settings).rewards.wheel;const prizes=w.prizes;const fields=prizes.map((p,i)=>`<div class="form-section premium-panel"><div class="section-head compact"><div><div class="eyebrow">PRIZE ${i+1}</div><h4>${esc(p.label||p.type)}</h4></div><span class="chip gold">${esc(p.id)}</span></div><div class="form-grid"><div class="field"><label>PRIZE WEIGHT (%)</label><input id="wheelWeight_${i}" type="number" min="0" max="100" step="0.1" value="${Number(p.weight||0)}"></div>${p.type==='discount'?`<div class="field"><label>DISCOUNT (%)</label><input id="wheelPercent_${i}" type="number" min="25" max="50" step="1" value="${Number(p.percent||25)}"></div><div class="field"><label>ELIGIBLE PRODUCT IDs (COMMA SEPARATED)</label><input id="wheelProducts_${i}" value="${esc((p.productIds||[]).join(', '))}" placeholder="Required: selected product IDs"></div>`:`<div class="field"><label>REWARD TYPE</label><input value="90-day ERA Pass membership" disabled></div>`}</div></div>`).join('');
  const total=prizes.reduce((n,p)=>n+Number(p.weight||0),0);

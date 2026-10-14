@@ -1,0 +1,16 @@
+KRYVEN ERA — LUXE + 3 OFFERS UPDATE (14 Oct 2026)
+
+1) OFFERS: ab sirf 3 -> Buy 1 Get 1 Free, Flat 50% Off, Chance to Membership.
+   Baaki (Spin & Win, Follower codes, Next order, Limited drop, Launch) offers page, strip, menu se hata diye.
+   (BOGO / 50% ka asli price Admin > Products mein har product ke offer se lagta hai — pehle jaisa.)
+2) MEMBERSHIP CODE: Admin > "Membership Requests" mein personal code banao (e.g. ERA-RAHUL-01, max uses 1).
+   Customer Offers page par code dale -> uska naam/phone/email Admin panel mein aata hai
+   -> "GIVE MEMBERSHIP" dabao -> 90 din ka ERA PASS active.
+   ZAROORI: Supabase SQL Editor mein SUPABASE-MEMBERSHIP-CHANCE-SETUP.sql ek baar run karo.
+3) LUXE LOOK: kryven-luxe.css (ivory + ink + champagne gold, Cormorant Garamond + Jost), poori site par.
+   Home par purana lal Era Fest panel hat gaya; uski jagah 3-offer luxury strip.
+4) MENU: nayi luxury menu page (line icons, groups, animation). Spin & Win hata diya.
+5) BACKGROUND VIDEO: hero ka video area pehle hi hata tha. Ab poori site ke background mein video chalta hai.
+   Admin > Store editor > "Website background video": file upload karo -> Cloudinary link khud bhar jata hai
+   -> SAVE WEBSITE. Default OFF hai jab tak aap video na daalo.
+6) vercel.json: CSP mein api.cloudinary.com add kiya (bina iske admin uploads block hote the).

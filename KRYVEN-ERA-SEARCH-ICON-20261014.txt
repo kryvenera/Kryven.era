@@ -1,0 +1,6 @@
+KRYVEN ERA — SEARCH ICON UPDATE (14 Oct 2026)
+- Header ab search bar ki jagah ek round search icon dikhata hai (MENU ke left side).
+- Icon tap karne par search bar smooth animation ke saath khulta hai aur typing ke liye focus ho jata hai.
+- Dobara icon tap, Esc, ya bahar tap karne par bar band ho jata hai.
+- Files changed: app.js, kryven-era-next.css, cache-version in HTML files.
+- npm run check: passed.

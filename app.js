@@ -80,8 +80,7 @@ function hydrateState(){
   state.settings.adminLogo=state.settings.adminLogo||'favicon.png';
   state.settings.searchSuggestions=Array.isArray(state.settings.searchSuggestions)&&state.settings.searchSuggestions.length?state.settings.searchSuggestions:['oversized t-shirt','black hoodie','cargo pants','kryven era'];
   if(!state.settings.heroVideo || String(state.settings.heroVideo).trim()==='') state.settings.heroVideo=DEFAULT_HERO_VIDEO;
-  if(!state.settings.backgroundVideo || String(state.settings.backgroundVideo).trim()==='') state.settings.backgroundVideo=DEFAULT_HERO_VIDEO;
-  state.settings.backgroundVideoEnabled=true;
+  if(typeof state.settings.backgroundVideoEnabled!=='boolean') state.settings.backgroundVideoEnabled=false; // Admin controls the site background video.
   state.cart=Array.isArray(state.cart)?state.cart:[];
   state.profile=Object.assign({customerId:''},state.profile||{});
   state.orders=Array.isArray(state.orders)?state.orders:[];
@@ -110,8 +109,7 @@ async function loadLiveCatalog(){
     state.settings=Object.assign({},state.settings,incomingSettings);
     // Keep the bundled temporary media as a working fallback when Admin has an empty media field.
     if(!state.settings.heroVideo || String(state.settings.heroVideo).trim()==='') state.settings.heroVideo=DEFAULT_HERO_VIDEO;
-    if(!state.settings.backgroundVideo || String(state.settings.backgroundVideo).trim()==='') state.settings.backgroundVideo=DEFAULT_HERO_VIDEO;
-    state.settings.backgroundVideoEnabled=true;
+    if(typeof state.settings.backgroundVideoEnabled!=='boolean') state.settings.backgroundVideoEnabled=false;
     // Never let the public catalog row overwrite the customer's local account/cart.
     state.products=cloud.products;
     ensureVariantVisuals();
@@ -166,6 +164,22 @@ function renderSearchOverlay(q='',matches=[]){
 function closeSearchOverlay(){document.getElementById('searchOverlay')?.remove()}
 function setSearchSuggestion(value){const input=document.querySelector('#topSearch');if(input){input.value=value;input.focus()}search(value)}
 window.closeSearchOverlay=closeSearchOverlay;window.setSearchSuggestion=setSearchSuggestion;
+function toggleHeaderSearch(force){
+  const hd=document.querySelector('.ke-store-header');if(!hd)return;
+  const open=typeof force==='boolean'?force:!hd.classList.contains('ke-search-open');
+  hd.classList.toggle('ke-search-open',open);
+  const t=hd.querySelector('.ke-search-toggle');if(t){t.setAttribute('aria-expanded',String(open));t.setAttribute('aria-label',open?'Close search':'Open search')}
+  if(open){
+    const input=document.getElementById('topSearch');
+    document.documentElement.style.setProperty('--ke-search-top',(hd.getBoundingClientRect().bottom+66)+'px');
+    setTimeout(()=>input&&input.focus(),60);
+  }else{closeSearchOverlay();const i=document.getElementById('topSearch');if(i)i.blur()}
+}
+window.toggleHeaderSearch=toggleHeaderSearch;
+if(!window.__keSearchBound){window.__keSearchBound=true;
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleHeaderSearch(false)});
+  document.addEventListener('click',e=>{const hd=document.querySelector('.ke-store-header.ke-search-open');if(hd&&!e.target.closest('.ke-global-search,.ke-search-toggle,.search-panel'))toggleHeaderSearch(false)});
+}
 
 function logo(){return `<a class="logo premium-logo" href="index.html" aria-label="KRYVEN ERA home"><img class="logo-image" src="logo-primary.png" alt="${esc(state.settings.brand||'KRYVEN ERA')} logo"></a>`}
 function brandSaleHeader(){
@@ -175,14 +189,14 @@ function brandSaleHeader(){
   const rawId=user?.id||state.profile?.customerId||(signed?getCustomerId():'');
   const visibleId=rawId?(String(rawId).startsWith('KE-C-')?String(rawId):String(rawId).length>15?String(rawId).slice(0,4).toUpperCase()+'…'+String(rawId).slice(-4).toUpperCase():String(rawId)):'';
   const query=new URLSearchParams(location.search).get('q')||'';
-  return `<div class="ke-sale-topline"><div class="ke-sale-topline-inner"><span class="ke-sale-topline-tag">THE ERA FEST</span><span>MEMBER PRICES <i>✦</i> LIMITED DROPS <i>✦</i> REWARD SPINS</span><a href="offers.html">EXPLORE OFFERS <b>→</b></a></div></div>
+  return `<div class="ke-sale-topline"><div class="ke-sale-topline-inner"><span class="ke-sale-topline-tag">THE ERA EDIT</span><span>BUY 1 GET 1 FREE <i>✦</i> FLAT 50% OFF <i>✦</i> CHANCE TO MEMBERSHIP</span><a href="offers.html">VIEW OFFERS <b>→</b></a></div></div>
   <header class="ke-store-header"><div class="ke-header-main">
     ${logo()}
-    <form class="ke-global-search" role="search" aria-label="Search KRYVEN ERA products" onsubmit="event.preventDefault();location.href='search.html?q='+encodeURIComponent(this.querySelector('input').value.trim())">
+    <form class="ke-global-search" id="keGlobalSearch" role="search" aria-label="Search KRYVEN ERA products" onsubmit="event.preventDefault();location.href='search.html?q='+encodeURIComponent(this.querySelector('input').value.trim())">
       <span class="ke-search-glass" aria-hidden="true">⌕</span><input id="topSearch" type="search" name="q" value="${esc(query)}" autocomplete="off" placeholder="Search T-shirts, hoodies, pants and more…" onfocus="renderSearchOverlay('')" oninput="search(this.value)" aria-label="Search products"><button type="submit" aria-label="Submit search">SEARCH</button>
     </form>
-    <div class="ke-header-actions"><a href="menu.html" class="ke-menu-link" aria-label="Open menu"><span aria-hidden="true">☰</span><strong>MENU</strong></a><a href="#" class="ke-account-link" onclick="event.preventDefault();openProfile()" title="${signed?'Customer ID: '+rawId:'Sign in or create an account'}"><span class="ke-account-icon" aria-hidden="true">♙</span><span class="ke-account-copy"><strong>${signed?'MY ACCOUNT':'SIGN IN / JOIN'}</strong><small>${signed?'ID · '+esc(visibleId):'Save details & rewards'}</small></span></a><button class="ke-bag-link" type="button" onclick="location.href='bag.html'" aria-label="Open full shopping bag"><span class="ke-bag-icon" aria-hidden="true">▱</span><span>BAG</span><b>${total||0}</b></button></div>
-  </div><nav class="ke-category-nav" aria-label="Shop categories"><a href="shop.html?category=T-Shirts">T-SHIRTS</a><a href="shop.html?category=Hoodies">HOODIES</a><a href="shop.html?category=Pants">PANTS</a><a href="shop.html?category=Jackets">JACKETS</a><a href="shop.html?category=Accessories">ACCESSORIES</a><span class="ke-category-divider"></span><a class="ke-category-special" href="offers.html">ALL OFFERS</a><a class="ke-category-special" href="membership.html">ERA PASS</a><a class="ke-category-special" href="rewards.html">SPIN & WIN</a></nav></header>`;
+    <div class="ke-header-actions"><button type="button" class="ke-search-toggle" onclick="toggleHeaderSearch()" aria-label="Open search" aria-expanded="false" aria-controls="keGlobalSearch"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button><a href="menu.html" class="ke-menu-link" aria-label="Open menu"><span aria-hidden="true">☰</span><strong>MENU</strong></a><a href="#" class="ke-account-link" onclick="event.preventDefault();openProfile()" title="${signed?'Customer ID: '+rawId:'Sign in or create an account'}"><span class="ke-account-icon" aria-hidden="true">♙</span><span class="ke-account-copy"><strong>${signed?'MY ACCOUNT':'SIGN IN / JOIN'}</strong><small>${signed?'ID · '+esc(visibleId):'Save details & rewards'}</small></span></a><button class="ke-bag-link" type="button" onclick="location.href='bag.html'" aria-label="Open full shopping bag"><span class="ke-bag-icon" aria-hidden="true">▱</span><span>BAG</span><b>${total||0}</b></button></div>
+  </div><nav class="ke-category-nav" aria-label="Shop categories"><a href="shop.html?category=T-Shirts">T-SHIRTS</a><a href="shop.html?category=Hoodies">HOODIES</a><a href="shop.html?category=Pants">PANTS</a><a href="shop.html?category=Jackets">JACKETS</a><a href="shop.html?category=Accessories">ACCESSORIES</a><span class="ke-category-divider"></span><a class="ke-category-special" href="offers.html">OFFERS</a></nav></header>`;
 }
 function header(){return brandSaleHeader()}
 function hero(){return `<section id="home" class="hero premium-hero ke-white-hero"><div class="container hero-grid premium-hero-grid"><div class="hero-copy"><div class="kicker">KRYVEN ERA / 2026 COLLECTION</div><h1>WEAR<br><span>YOUR ERA.</span></h1><p>Premium streetwear. Built for your era.</p><div class="hero-cta"><a class="btn primary" href="shop.html">EXPLORE COLLECTION →</a><button class="btn ghost" onclick="openCategory('T-Shirts')">VIEW THE DROP</button></div><div class="hero-mini-meta"><span>01 / PREMIUM FABRICS</span><span>02 / LIMITED DROPS</span><span>03 / SECURE CHECKOUT</span></div></div></div></section>`}
@@ -383,7 +397,6 @@ function openMenu(){
     <a href="shop.html"><span class="menu-list-icon">＋</span><span><b>Shop All</b><small>Explore the latest drop</small></span><em>›</em></a>
     <a href="offers.html"><span class="menu-list-icon">%</span><span><b>All Offers</b><small>Member prices and limited drops</small></span><em>›</em></a>
     <a href="membership.html"><span class="menu-list-icon">◇</span><span><b>ERA Pass</b><small>90-day membership</small></span><em>›</em></a>
-    <a href="rewards.html"><span class="menu-list-icon">◉</span><span><b>Spin the Era</b><small>One spin per campaign</small></span><em>›</em></a>
     <a href="coupons.html"><span class="menu-list-icon">▤</span><span><b>Follower Codes</b><small>Creator coupons and rewards</small></span><em>›</em></a>
     <a href="help-care.html"><span class="menu-list-icon">?</span><span><b>Help & Care</b><small>Support & order help</small></span><em>›</em></a>
     ${signed?`<button class="menu-item-btn menu-danger-item" onclick="openLogoutConfirm()"><span class="menu-list-icon danger-icon">↪</span><span><b>Log out</b><small>Sign out on this browser</small></span><em>›</em></button><button class="menu-item-btn menu-delete-item" onclick="openDeleteConfirm()"><span class="menu-list-icon delete-icon">!</span><span><b>Delete account</b><small>Remove your local account data</small></span><em>›</em></button>`:''}
@@ -724,8 +737,7 @@ function mnFooter(){
   <p class="mn-copy">© 2026 KRYVEN ERA</p></div></footer>`;
 }
 function promoFeature(){
-  const m=state.settings?.membership||{};
-  return `<section class="ke-era-fest-section"><div class="mn-wrap"><div class="ke-era-fest-panel"><div class="ke-era-fest-copy"><span class="ke-era-fest-kicker"><i>✦</i> KRYVEN ERA PRESENTS / MEMBER SEASON <i>✦</i></span><h2>THE ERA<br><em>FEST.</em></h2><p>More style. More rewards. Your era starts here.</p><div class="ke-era-fest-chips"><span>90-DAY ERA PASS</span><span>MEMBER-ONLY PRICES</span><span>LIMITED DROPS</span></div><div class="ke-era-fest-actions"><a href="offers.html" class="ke-era-fest-primary">EXPLORE OFFERS <b>→</b></a><a href="membership.html" class="ke-era-fest-secondary">GET THE ERA PASS · ${money(m.price??69)}</a></div></div><div class="ke-era-fest-art" aria-label="Selected product rewards"><div class="ke-fest-orbit ke-fest-orbit-one"></div><div class="ke-fest-orbit ke-fest-orbit-two"></div><div class="ke-era-fest-stamp"><small>SPIN & UNLOCK</small><strong>25–50<sup>%</sup></strong><span>OFF SELECTED STYLES*</span></div><div class="ke-era-fest-spark ke-spark-one">✦</div><div class="ke-era-fest-spark ke-spark-two">✦</div><div class="ke-era-fest-note">*Rewards apply only to selected eligible products. Terms apply.</div></div></div></div></section>`;
+  return `<section class="lx-home-offers" aria-label="Offers"><div class="lx-home-offers-inner"><div class="lx-home-offers-head"><span>THE OFFER EDIT</span><a href="offers.html">VIEW ALL <b>→</b></a></div><div class="lx-home-offers-grid"><a href="offers.html#offer-bogo" class="lx-ho"><em>1+1</em><b>Buy 1 Get 1 Free</b><small>Pick two, pay for one</small></a><a href="offers.html#offer-flat50" class="lx-ho"><em>50%</em><b>Flat 50% Off</b><small>Selected pieces</small></a><a href="offers.html#offer-membership" class="lx-ho lx-ho-pass"><em>✦</em><b>Chance to Membership</b><small>Have a code? Claim it</small></a></div></div></section>`;
 }
 function homeMinimal(){return `${mnHeader()}<main>${promoFeature()}${mnHero()}${mnCategories()}${mnProducts()}</main>${mnFooter()}${drawDrawer()}${drawModal()}`}
 
