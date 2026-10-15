@@ -7,8 +7,8 @@ window.KRYVEN_LEGAL = {
   address: '',            // full registered / pickup address
   gstin: '',              // 15-character GSTIN, if registered
   email: '',              // support / grievance email
-  phone: '+91 7036421785',
-  whatsapp: '7036421785',
+  phone: '',
+  whatsapp: '',
   grievanceOfficer: '',   // name of the Grievance Officer (required for Indian e-commerce)
   supportHours: 'Mon–Sat · 10 AM–7 PM',
   returnWindowDays: 7,    // CONFIRM: days after delivery in which a return can be requested

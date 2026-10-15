@@ -26,7 +26,7 @@ const IMG = {
 const defaultState = {
   settings: {
     brand:'KRYVEN ERA', tagline:'WEAR YOUR ERA', heroTitle:'OWN THE NIGHT.', heroText:'Luxury streetwear engineered for presence. Black, silver and gold details with a premium 3D experience.', heroVideo:'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
-    whatsapp:'7036421785', upi:'kryvenera@upi', currency:'₹', shipping:0, searchSuggestions:['oversized t-shirt','black hoodie','cargo pants','kryven era'],
+    whatsapp:'', upi:'kryvenera@upi', currency:'₹', shipping:0, searchSuggestions:['oversized t-shirt','black hoodie','cargo pants','kryven era'],
     payments:{cod:true,upi:false,card:false,bank:false,codAdvancePercent:20,paymentSettingsVersion:3},
     deliveryNote:'Free shipping on eligible orders', supportText:'Mon–Sat · 10 AM–7 PM'
   },
@@ -245,10 +245,10 @@ function legacyProductDetail(p){
   </div>`;
 }
 function supportPage(){
-  const raw=String(state.settings?.whatsapp||'7036421785').replace(/\D/g,'');
+  const raw=String(state.settings?.whatsapp||'').replace(/\D/g,'');
   const phone=raw.length===10?'91'+raw:raw;
-  const display=raw.length===10?'+91 '+raw.slice(0,5)+' '+raw.slice(5):'+'+raw;
-  const wa='https://wa.me/'+phone+'?text='+encodeURIComponent('Hello KRYVEN ERA, I need help with my order.');
+  const display=!raw?'Contact details coming soon':raw.length===10?'+91 '+raw.slice(0,5)+' '+raw.slice(5):'+'+raw;
+  const wa=!raw?'#':'https://wa.me/'+phone+'?text='+encodeURIComponent('Hello KRYVEN ERA, I need help with my order.');
   return `<div class="support-page"><div class="checkout-card support-card"><div class="eyebrow">CUSTOMER CARE</div><h2>Need help with your order?</h2><p class="muted">${esc(state.settings?.supportText||'Mon–Sat · 10 AM–7 PM')}</p><div class="support-actions"><a class="btn primary" href="tel:${esc(phone)}">CALL ${esc(display)}</a><a class="btn success" href="${esc(wa)}" target="_blank" rel="noopener">CHAT ON WHATSAPP</a></div><p class="muted" style="margin-top:14px">Tap Call to open your phone dialer.</p></div></div>`;
 }
 
