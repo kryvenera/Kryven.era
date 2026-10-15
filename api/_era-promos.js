@@ -119,6 +119,6 @@ export async function reserveCouponForOrder(userId,resolved,orderId,discountAmou
 }
 export async function activateMembershipForOrder(order){
   const userId=String(order?.authUserId||'');
-  if(!userId||(order?.items||[]).every(x=>String(x.id)!=='ERA_PASS_90'))return null;
+  if(!userId||(order?.items||[]).every(x=>!String(x.id).startsWith('ERA_PASS_')))return null;
   return extendMembership(userId,Number(order.membershipDurationDays)||90,'paid',String(order.id||''));
 }

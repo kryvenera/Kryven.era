@@ -43,7 +43,7 @@ const isConfirmed=o=>o?.paymentVerified===true&&String(o?.paymentStatus||'').toU
 
 async function postConfirmationBenefits(o){
   try{await settleOrderPromos(String(o.id||''),true)}catch(e){console.error('PROMO_SETTLEMENT_ERROR',e?.message)}
-  if((o.items||[]).some(x=>String(x.id)==='ERA_PASS_90')){try{await activateMembershipForOrder(o)}catch(e){console.error('MEMBERSHIP_ACTIVATION_ERROR',e?.message)}}
+  if((o.items||[]).some(x=>String(x.id).startsWith('ERA_PASS_'))){try{await activateMembershipForOrder(o)}catch(e){console.error('MEMBERSHIP_ACTIVATION_ERROR',e?.message)}}
 }
 
 // Marks the order Placed + paymentVerified. Call ONLY after Cashfree has reported a successful, full-amount payment.

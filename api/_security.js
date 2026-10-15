@@ -37,7 +37,7 @@ export function validEmail(v){
 // ---- Supabase config (env first, falls back to the existing public values) ----
 export function supabaseConfig(){
   const url = process.env.SUPABASE_URL || 'https://iisezaptudifgwkjxnkh.supabase.co';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_oGorfrDciMl6GGOllbTjfg_Sr3YzDsH';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '';
   const table = process.env.SUPABASE_TABLE || 'Allow public order insert';
   return { url, key, table, rest: `${url}/rest/v1/${encodeURIComponent(table)}` };
 }

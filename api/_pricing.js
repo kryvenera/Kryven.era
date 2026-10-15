@@ -63,6 +63,15 @@ export function codAdvancePercent(settings){
 }
 
 // items: [{id,qty,size,color}], mode: 'online' (pay everything now) | 'cod' (pay advance now, rest on delivery)
+function isMembershipId(id){return /^ERA_PASS_[A-Z0-9_-]{1,24}$/.test(String(id||''))}
+function membershipPlan(memberCfg,id){
+  const plans=Array.isArray(memberCfg?.plans)?memberCfg.plans:[];
+  const found=plans.find(p=>String(p?.id||'')===String(id));
+  if(found)return found.enabled===false?null:{id:String(found.id),name:String(found.name||'ERA Pass').slice(0,70),price:Math.max(1,num(found.price)),durationDays:Math.max(1,Math.min(3650,num(found.durationDays)||90))};
+  if(String(id)==='ERA_PASS_90'&&!plans.length&&memberCfg.enabled!==false)return {id:'ERA_PASS_90',name:`${Math.max(1,Math.min(3650,num(memberCfg.durationDays)||90))}-Day ERA Pass`,price:Math.max(1,num(memberCfg.price??69)),durationDays:Math.max(1,Math.min(3650,num(memberCfg.durationDays)||90))};
+  return null;
+}
+
 export function priceOrder(catalog,rawItems,mode,context={}){
   if(mode!=='online'&&mode!=='cod')throw new OrderError('Invalid payment option');
   if(!Array.isArray(rawItems)||!rawItems.length||rawItems.length>30)throw new OrderError('Your bag is empty');
@@ -71,7 +80,6 @@ export function priceOrder(catalog,rawItems,mode,context={}){
   const memberCfg=settings.membership||{};
   const membershipActive=!!context.membershipActive&&memberCfg.enabled!==false;
   const coupon=context.coupon||null;
-  const membershipId='ERA_PASS_90';
   const merged=new Map();
   for(const raw of rawItems){
     const id=String(raw?.id??'').trim();
@@ -79,18 +87,19 @@ export function priceOrder(catalog,rawItems,mode,context={}){
     if(!id||!Number.isInteger(qty)||qty<1||qty>20)throw new OrderError('Invalid item in your bag');
     const size=String(raw?.size??'').trim().slice(0,12);
     const color=String(raw?.color??'').trim().slice(0,40);
-    if(id===membershipId){
+    if(isMembershipId(id)){
+      const plan=membershipPlan(memberCfg,id);
       if(qty!==1)throw new OrderError('Only one ERA PASS can be purchased per checkout');
       if(mode!=='online')throw new OrderError('Membership passes must be purchased with online payment');
       if(!context.userId)throw new OrderError('Sign in before purchasing an ERA PASS');
-      if(memberCfg.enabled===false)throw new OrderError('Membership is currently unavailable');
+      if(memberCfg.enabled===false||!plan)throw new OrderError('This membership plan is unavailable. Please choose an active plan.');
       if(membershipActive)throw new OrderError('Your ERA PASS is already active');
     }
     const key=`${id}|${size}|${color}`;const found=merged.get(key);
     if(found)found.qty+=qty;else merged.set(key,{id,qty,size,color});
   }
 
-  const membershipRequested=[...merged.values()].some(x=>x.id===membershipId);if(membershipRequested&&merged.size>1)throw new OrderError('Please purchase the ERA PASS in a separate checkout from physical products.');
+  const membershipRequested=[...merged.values()].some(x=>isMembershipId(x.id));if(membershipRequested&&merged.size>1)throw new OrderError('Please purchase the ERA PASS in a separate checkout from physical products.');
   const perProduct=new Map();const items=[];let subtotal=0,after=0,shirtPosition=0;
   const tiers=Array.isArray(memberCfg.tshirtPositionPercents)?memberCfg.tshirtPositionPercents:[60,40,20,0,70];
   const defaultMemberPercent=Math.max(0,Math.min(100,num(memberCfg.memberPricePercent??60)));
@@ -98,10 +107,10 @@ export function priceOrder(catalog,rawItems,mode,context={}){
   const couponIds=new Set(Array.isArray(coupon?.productIds)?coupon.productIds.map(String):[]);
   const couponMin=Math.max(0,num(coupon?.minCartValue));
   for(const line of merged.values()){
-    if(line.id===membershipId){
-      const price=Math.max(1,num(memberCfg.price??69));
-      subtotal+=price;after+=price;
-      items.push({id:membershipId,name:'THE ERA PASS · 90-DAY MEMBERSHIP',image:'logo-icon.png',size:'',color:'Digital membership',qty:1,unitPrice:price,originalUnitPrice:price,lineTotal:price,isMembership:true});
+    if(isMembershipId(line.id)){
+      const plan=membershipPlan(memberCfg,line.id);if(!plan||memberCfg.enabled===false)throw new OrderError('This membership plan is unavailable.');
+      const price=plan.price;subtotal+=price;after+=price;
+      items.push({id:plan.id,name:plan.name,image:'logo-icon.png',size:'',color:'Digital membership',qty:1,unitPrice:price,originalUnitPrice:price,lineTotal:price,isMembership:true,durationDays:plan.durationDays});
       continue;
     }
     const p=catalog.products.find(x=>String(pid(x))===line.id);

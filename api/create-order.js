@@ -27,7 +27,8 @@ export default async function handler(req,res){
     const mode=body.mode==='cod'?'cod':body.mode==='online'?'online':'';
     if(!mode)return res.status(400).json({error:'Choose a payment option'});
 
-    const membershipOnly=Array.isArray(body.items)&&body.items.length>0&&body.items.every(x=>String(x?.id||'')==='ERA_PASS_90');
+    const membershipOnly=Array.isArray(body.items)&&body.items.length>0&&body.items.every(x=>/^ERA_PASS_[A-Z0-9_-]{1,24}$/.test(String(x?.id||'')));
+    if(membershipOnly&&mode!=='online')return res.status(400).json({error:'ERA PASS memberships must be purchased through Cashfree online payment.'});
     let eraUser=null;
     const wantsMemberOrCoupon=membershipOnly||Boolean(String(body.coupon_code||'').trim());
     const hasBearer=/^Bearer\s+.+/i.test(String(req.headers.authorization||''));
@@ -60,7 +61,7 @@ export default async function handler(req,res){
       resolved=await resolveCoupon(eraUser.id,couponCode,catalog,orderId);
     }
     const priced=priceOrder(catalog,body.items,mode,{userId:eraUser?.id||'',membershipActive:!!active,coupon:resolved?.coupon||null});
-    const drop=catalog.settings?.limitedDrops||{};const dropIds=new Set(Array.isArray(drop.productIds)?drop.productIds.map(String):[]);const qualifyingDropItems=priced.items.filter(it=>String(it.id)!=='ERA_PASS_90'&&dropIds.has(String(it.id)));const freebie=drop.enabled!==false&&dropIds.size&&qualifyingDropItems.length?{title:String(drop.title||'LIMITED ERA DROP').slice(0,100),giftText:String(drop.giftText||'Exclusive KRYVEN ERA collectible').slice(0,180),productIds:[...new Set(qualifyingDropItems.map(it=>String(it.id)))]}:null;
+    const drop=catalog.settings?.limitedDrops||{};const dropIds=new Set(Array.isArray(drop.productIds)?drop.productIds.map(String):[]);const qualifyingDropItems=priced.items.filter(it=>!String(it.id).startsWith('ERA_PASS_')&&dropIds.has(String(it.id)));const freebie=drop.enabled!==false&&dropIds.size&&qualifyingDropItems.length?{title:String(drop.title||'LIMITED ERA DROP').slice(0,100),giftText:String(drop.giftText||'Exclusive KRYVEN ERA collectible').slice(0,180),productIds:[...new Set(qualifyingDropItems.map(it=>String(it.id)))]}:null;
     const claimed=Number(body.client_amount);
     if(Number.isFinite(claimed)&&Math.abs(claimed-priced.payNow)>0.5){
       return res.status(409).json({error:'Prices were just updated. Please review your order and try again.',code:'PRICE_CHANGED',pay_now:priced.payNow,total:priced.total});
@@ -124,7 +125,7 @@ export default async function handler(req,res){
         payment:mode==='cod'?'cod':'online',status:'Awaiting Payment Verification',paymentVerified:false,
         payNow:priced.payNow,advancePaid:priced.payNow,remainingDue:priced.remaining,codAdvancePercent:priced.codAdvancePercent,
         paymentGateway:'Cashfree',authUserId:eraUser?.id||null,couponCode:resolved?.coupon?.code||null,
-        membershipDurationDays:Number(catalog.settings?.membership?.durationDays)||90,freebie
+        membershipDurationDays:Number(priced.items.find(it=>it.isMembership)?.durationDays||catalog.settings?.membership?.durationDays)||90,freebie
       };
       const rowId=await insertOrder(order);
       if(!rowId){await settleOrderPromos(orderId,false);return res.status(502).json({error:'We could not save your order. You have not been charged. Please try again.'});}
