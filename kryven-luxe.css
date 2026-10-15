@@ -155,3 +155,9 @@ body.lx-menu-page{background:var(--lx-ivory)!important}
 @media(max-width:380px){.ke-sale-topline-inner>span:nth-child(2) i{display:none}.ke-sale-topline-inner>span:nth-child(2){letter-spacing:.08em}}
 body[data-era-page="offers"] .lx-bg-veil{background:linear-gradient(180deg,rgba(15,14,12,.8),rgba(15,14,12,.72) 50%,rgba(15,14,12,.86))}
 body[data-era-page="offers"] .lx-bg{background:#0f0e0c}
+
+
+/* October 14 menu opacity hardening: keep the full page canvas opaque. */
+html:has(body.lx-menu-page), body.lx-menu-page { background-color:#f7f4ec!important; background-image:none!important; opacity:1!important; }
+body.lx-menu-page::before, body.lx-menu-page::after { content:none!important; background:none!important; opacity:1!important; }
+body.lx-menu-page .lx-menu { position:relative; z-index:1; min-height:100vh; background-color:#f7f4ec!important; background-image:none!important; }

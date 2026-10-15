@@ -43,8 +43,9 @@
     host.id='keMapPicker'; host.className='ke-map-card';
     host.innerHTML=`<div class="ke-map-heading"><div><small>DELIVERY LOCATION</small><h3>Pin your exact address</h3><p>Use your location or move the pin on the map. Confirm the pin before placing your order.</p></div><button type="button" id="keUseLocation" class="ke-map-button">Use my location</button></div><div id="keMap" role="application" aria-label="Choose delivery location on map"></div><div class="ke-map-footer"><span id="keMapStatus">Map loads when you open this section.</span><button type="button" id="keConfirmLocation" class="ke-map-button ke-map-confirm">Use this location</button></div>`;
     pin.closest('.field')?.insertAdjacentElement('afterend',host);
-    const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
-    const script=document.createElement('script');script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';script.onload=initMap;document.head.appendChild(script);
+    function loadLeaflet(){const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
+    const script=document.createElement('script');script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';script.onload=initMap;document.head.appendChild(script);}
+    if(window.keConsent&&!window.keConsent.allowed()){const m=document.getElementById('keMap');if(m)m.innerHTML='<div class="ke-3d-consent"><p>The map loads content from third-party servers (unpkg.com, OpenStreetMap). You can type your address instead.</p><button type="button" id="keMapAllow">Allow &amp; show map</button></div>';document.getElementById('keMapAllow')?.addEventListener('click',()=>{window.keConsent.set(true);loadLeaflet()});document.addEventListener('ke-consent',ev=>{if(ev.detail.optional&&!window.L)loadLeaflet()},{once:true})}else loadLeaflet();
     let map,marker,chosen=null;
     function status(t){const el=document.getElementById('keMapStatus');if(el)el.textContent=t;}
     async function reverse(lat,lon){
@@ -86,29 +87,8 @@
     document.getElementById('keConfirmLocation').addEventListener('click',()=>{if(!chosen){toast('Choose a location on the map first.');return;}reverse(chosen.lat,chosen.lon);});
   }
 
-  // Save a referral code from a referral URL and expose it to signup flow.
-  function captureReferral(){
-    const params=new URLSearchParams(location.search);
-    const code=params.get('ref')||params.get('referral')||params.get('ref_code');
-    if(code && /^[A-Z0-9_-]{3,40}$/i.test(code)){
-      try{localStorage.setItem('kryven-era-referral-code',code.toUpperCase());}catch{}
-    }
-  }
-
-  // Add a consistent referral entry to customer navigation, without duplicating existing links.
-  function addReferralLinks(){
-    document.querySelectorAll('a[href="rewards.html"]').forEach(a=>{
-      if(a.dataset.keReferralDone)return;
-      a.dataset.keReferralDone='1';
-      const next=a.cloneNode(true);next.href='rewards.html';next.textContent='Refer & Earn · Earn up to ₹100 + Membership';next.classList.add('ke-referral-link');
-      if(a.parentElement && !a.parentElement.querySelector('.ke-referral-link'))a.insertAdjacentElement('afterend',next);
-    });
-  }
-
   function start(){
-    captureReferral();
     if(path==='checkout.html')addCheckoutMap();
-    addReferralLinks();
     enforceSignIn();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();

@@ -1,0 +1,28 @@
+/* KRYVEN ERA - compliance, consent and accessibility styles */
+#keCookieBanner{position:fixed;left:12px;right:12px;bottom:12px;z-index:100000;max-width:520px;margin:0 auto;background:#14120f;color:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 18px 60px rgba(0,0,0,.35);font:14px/1.5 'DM Sans',Arial,sans-serif}
+#keCookieBanner strong{display:block;font-size:15px;margin-bottom:4px}
+#keCookieBanner p{margin:0 0 12px;color:#e9e6df}
+#keCookieBanner a{color:#fff;text-decoration:underline}
+.ke-cookie-actions{display:flex;gap:10px}
+.ke-cookie-actions button{flex:1;min-height:44px;border-radius:10px;border:1px solid #fff;background:transparent;color:#fff;font-weight:700}
+.ke-cookie-actions button.primary{background:#fff;color:#14120f}
+.ke-legal-strip{width:min(1180px,92vw);margin:18px auto 0;padding:16px 0 24px;border-top:1px solid rgba(20,18,15,.14);font-size:13px;line-height:1.7;color:#4a4f4c}
+.ke-legal-strip nav{display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:8px}
+.ke-legal-strip a,.ke-linkbtn{color:#14120f;text-decoration:underline;text-underline-offset:3px;min-height:24px}
+.ke-linkbtn{background:none;border:0;padding:0;font:inherit;cursor:pointer}
+.ke-legal-biz{margin:0;color:#4a4f4c}
+.ke-standalone-footer{padding:0 0 24px}
+.ke-collect-note{font-size:13px;color:#4a4f4c;margin:12px 0}
+.ke-collect-note a{text-decoration:underline}
+.ke-skip{position:absolute;left:8px;top:-60px;background:#14120f;color:#fff;padding:10px 14px;border-radius:8px;z-index:100001}
+.ke-skip:focus{top:8px}
+/* visible keyboard focus everywhere */
+:focus-visible{outline:3px solid #1f5fbf!important;outline-offset:2px!important}
+.card[role="link"]:focus-visible{outline-offset:4px!important}
+/* contrast: darker gold + muted text on light backgrounds (WCAG AA 4.5:1) */
+.eyebrow,.kicker{color:#6f5730!important}
+.muted,.meta,small{color:#59605c}
+.optional-mark{color:#59605c}
+.ke-3d-consent{padding:40px 20px;text-align:center;color:#4a4f4c}
+.ke-3d-consent button{margin-top:12px;min-height:44px;padding:0 18px;border-radius:10px;border:1px solid #14120f;background:#14120f;color:#fff;font-weight:700}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}

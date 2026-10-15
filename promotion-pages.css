@@ -39,3 +39,4 @@ body[data-era-page="membership"] .era-status{color:#80652e}
 body[data-era-page="membership"] .era-input,body[data-era-page="coupons"] .era-input{background:#fff;color:#222;border-color:#dedbd4}
 body[data-era-page="membership"] .era-result,body[data-era-page="rewards"] .era-result{background:#faf8f2;color:#222}
 @media(max-width:780px){.era-offers-grid{grid-template-columns:1fr;gap:12px}.era-offer-card{min-height:0;padding:20px!important}.era-section-heading{align-items:flex-start;flex-direction:column;gap:8px}.era-offer-footer{align-items:flex-start;flex-direction:column;padding:22px}.era-offer-footer .era-actions{margin-top:8px}.era-offer-trust{gap:9px 13px}.era-offer-jump{margin-left:-4px;margin-right:-4px;padding:12px 4px}}
+

@@ -8,8 +8,6 @@
 .ke-map-button{min-height:40px;padding:0 14px;border-radius:999px;border:1px solid #d8dfd2;background:#f5f8f1;color:#172017;font-size:11px;font-weight:800;letter-spacing:.04em}
 .ke-map-confirm{background:#16783a;color:white;border-color:#16783a}
 .ke-map-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:#626860}
-.ke-referral-link{display:inline-flex!important;align-items:center;gap:8px;color:#16833f!important;font-weight:800!important}
-.ke-referral-link:before{content:"↗";display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#e1f5e7;color:#16833f;font-size:15px}
 #keAuthOverlay .ke-auth-close{display:none}
 #keAuthOverlay .ke-auth-panel{border:1px solid rgba(215,173,89,.35);box-shadow:0 30px 100px rgba(0,0,0,.35)}
 @media(max-width:600px){.ke-map-card{padding:14px}.ke-map-heading h3{font-size:19px}#keMap{height:270px}.ke-map-footer{align-items:stretch}.ke-map-confirm{width:100%}}
