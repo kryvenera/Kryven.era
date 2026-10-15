@@ -1,0 +1,24 @@
+KRYVEN ERA WEBSITE CHAT — SETUP
+
+What this adds
+- Floating “Chat with us” widget on storefront pages (not WhatsApp).
+- Customer and owner messages stay on the website; customers do not see your personal phone number.
+- Admin inbox at /chat-admin.html, linked from the existing admin panel.
+- Polling refresh for multiple simultaneous conversations; messages are stored in Supabase.
+
+REQUIRED BEFORE DEPLOYMENT
+1. In the SAME Supabase project used by the store, open SQL Editor and run CHAT-SUPABASE-SETUP.sql.
+2. In Vercel Project Settings → Environment Variables, set SUPABASE_SERVICE_ROLE_KEY to the project's service_role key. Keep it server-only; never put it in browser code or commit it to GitHub. Ensure SUPABASE_URL points to that same project (or leave the existing default).
+3. Redeploy Vercel.
+4. Open Admin Panel and sign in with the existing Admin PIN. Click Customer Chats → Open Customer Chat Inbox.
+5. Open the storefront in another browser/device and send a test message. Reply from the inbox.
+
+SECURITY / LIMITS
+- The browser receives only a random chat token; the server stores its SHA-256 hash. Customer messages are only returned to the matching token.
+- Chat tables have RLS enabled and direct anon/authenticated table access revoked. Server API uses the service-role key.
+- The API uses best-effort per-instance rate limits; serverless in-memory limits are not a global abuse shield. Add WAF/edge protection if traffic becomes large.
+- Inbox polls every 5 seconds; this is suitable as a starting point, but it is not websocket push. At very high volume, use Supabase Realtime or a managed chat service and monitor Supabase quotas.
+- No system can promise unlimited traffic on a free plan. Capacity depends on Vercel/Supabase limits and database sizing.
+- If a customer clears browser storage, their existing anonymous chat token is lost.
+
+Files added: api/chat.js, chat-widget.js, chat-admin.html, chat-admin.js, CHAT-SUPABASE-SETUP.sql. Existing storefront and checkout files are retained; the admin panel receives one new navigation item.
