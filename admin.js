@@ -334,6 +334,33 @@ function products(){
   </div>`).join('')}</div>`
 }
 window.deleteProduct=i=>{if(confirm('Delete this product?')){state.products.splice(i,1);save();renderBody()}}
+function productColorUrlsForEditor(p,color){
+  const entry=Object.entries(p?.variantVisuals||{}).find(([name])=>String(name).trim().toLocaleLowerCase()===String(color).trim().toLocaleLowerCase());
+  if(!entry)return [];
+  const raw=entry[1],visual=typeof raw==='string'?{src:raw,images:[raw]}:(raw&&typeof raw==='object'?raw:{});
+  const urls=Array.isArray(visual.images)?visual.images.filter(Boolean):(visual.src?[visual.src]:[]);
+  // KE001 had synthetic hue/grayscale previews and generic fallback images from an older version.
+  // Do not migrate those placeholders into the editable colour-specific galleries.
+  const filter=String(visual.filter||'').toLocaleLowerCase();
+  if(filter.includes('hue-rotate')||filter.includes('grayscale'))return [];
+  if(String(p?.id)==='KE001'&&['black','white','red','silver'].includes(String(color).trim().toLocaleLowerCase())){
+    const genericBlack='photo-1583743814966-8936f37f9d7e';
+    if(urls.some(url=>String(url).includes(genericBlack)||(p.images||[]).includes(url)))return [];
+  }
+  return urls;
+}
+function productColorVariantCard(index,color='',urls=[]){
+  const imageList=Array.isArray(urls)?urls.filter(Boolean):[];
+  return `<div class="form-section premium-panel p-color-variant" data-color-index="${index}" style="margin:12px 0;padding:14px;border:1px solid #ded8ca;border-radius:14px;background:#fffdf8">
+    <div class="panel-head" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><div class="eyebrow">COLOUR VARIANT ${index+1}</div><h4 style="margin:4px 0">Separate photos for this colour</h4></div><button class="btn danger" type="button" onclick="removeProductColorVariant(this)">REMOVE COLOUR</button></div>
+    <div class="form-grid"><div class="field"><label>COLOUR NAME (CUSTOMIZABLE)</label><input class="p-color-name" value="${esc(color)}" placeholder="e.g. Midnight Blue"></div>
+    <div class="field"><label>UPLOAD THIS COLOUR'S PHOTOS</label><input type="file" accept="image/*" multiple onchange="uploadVariantColorImages(this)"><small class="field-help variant-upload-status">${imageList.length?`${imageList.length} saved photo URL${imageList.length===1?'':'s'}. New uploads are added to this gallery.`:'No dedicated photos saved yet; the general gallery will be used until you add some.'}</small></div>
+    <div class="field" style="grid-column:1/-1"><label>THIS COLOUR'S IMAGE URLS (ONE PER LINE)</label><textarea class="p-color-urls" rows="3" placeholder="Uploaded image URLs appear here; you can also paste URLs manually.">${esc(imageList.join('\n'))}</textarea><small class="field-help">The first photo becomes the main photo. Remaining photos appear in this colour's gallery.</small></div></div>
+  </div>`;
+}
+window.addProductColorVariant=()=>{const list=document.getElementById('pColorVariants');if(!list)return;const indices=[...list.querySelectorAll('.p-color-variant')].map(el=>Number(el.dataset.colorIndex)||0);const index=(indices.length?Math.max(...indices)+1:0);list.insertAdjacentHTML('beforeend',productColorVariantCard(index,'New colour',[]));};
+window.removeProductColorVariant=(button)=>{const card=button?.closest('.p-color-variant');if(card)card.remove();document.querySelectorAll('#pColorVariants .p-color-variant').forEach((el,i)=>{const eyebrow=el.querySelector('.eyebrow');if(eyebrow)eyebrow.textContent=`COLOUR VARIANT ${i+1}`;});};
+window.uploadVariantColorImages=async(input)=>{const files=[...(input?.files||[])],card=input?.closest('.p-color-variant'),textarea=card?.querySelector('.p-color-urls'),status=card?.querySelector('.variant-upload-status');if(!files.length||!textarea)return;const urls=textarea.value.split('\n').map(x=>x.trim()).filter(Boolean);try{for(let i=0;i<files.length;i++){if(status)status.textContent=`Uploading ${i+1}/${files.length} colour photo…`;urls.push(await uploadToCloudinary(files[i]));textarea.value=urls.join('\n');}if(status)status.textContent=`${files.length} photo${files.length===1?'':'s'} uploaded ✓ — save the product to publish.`;toast('Colour photos uploaded');}catch(e){if(status)status.textContent=`Upload failed: ${e.message||'error'}`;toast(`Colour image upload failed: ${e.message||'error'}`)}finally{input.value='';}};
 function productForm(i=null){
   const p=i===null
     ? {id:'KE'+Date.now().toString().slice(-6),name:'New Kryven Product',category:'T-Shirts',price:999,mrp:1499,discount:'33% OFF',rating:5,reviews:0,barcode:'',images:[IMG.tshirt],sizes:{S:true,M:true,L:true,XL:true,XXL:true},colors:['Black','White'],description:'',features:['Premium quality'],stock:10,offer:{enabled:false,type:'none',percent:50}}
@@ -349,13 +376,12 @@ function productForm(i=null){
     <div class="field"><label>DISCOUNT</label><input id="pDisc" value="${esc(p.discount)}"></div>
     <div class="field"><label>BARCODE / SKU</label><input id="pBarcode" value="${esc(p.barcode||'')}"></div>
     <div class="field"><label>STOCK</label><input id="pStock" type="number" value="${p.stock}"></div>
-    <div class="field"><label>COLOURS</label><input id="pColors" value="${esc((p.colors||[]).join(', '))}"></div>
     <div class="field" style="grid-column:1/-1"><label>PRODUCT IMAGES</label><input id="pImageFiles" type="file" accept="image/*" multiple onchange="uploadProductImages(this)"><small id="cloudinaryUploadStatus" class="field-help">Select one or more images. They will upload directly to Cloudinary.</small></div>
-    <div class="field" style="grid-column:1/-1"><label>IMAGE URLS (ONE PER LINE)</label><textarea id="pImages">${esc((p.images||[]).join('\n'))}</textarea></div>
-    <div class="field" style="grid-column:1/-1"><label>COLOUR IMAGE MAP (Color | URL, ONE PER LINE)</label><textarea id="pVariantImages" placeholder="Black | https://...\nWhite | https://...\nRed | https://...">${esc(Object.entries(p.variantVisuals||{}).filter(([,v])=>v?.src).map(([c,v])=>`${c} | ${v.src}`).join('\n'))}</textarea><small class="field-help">Admin can replace the temporary colour photos with exact product photos later.</small></div>
+    <div class="field" style="grid-column:1/-1"><label>GENERAL PRODUCT GALLERY (FALLBACK / NON-VARIANT PHOTOS)</label><textarea id="pImages">${esc((p.images||[]).join('\n'))}</textarea><small class="field-help">Colour-specific galleries below take priority on the product page, bag and checkout.</small></div>
     <div class="field" style="grid-column:1/-1"><label>DESCRIPTION</label><textarea id="pDesc">${esc(p.description||'')}</textarea></div>
     <div class="field" style="grid-column:1/-1"><label>FEATURES (ONE PER LINE)</label><textarea id="pFeatures">${esc((p.features||[]).join('\n'))}</textarea></div>
   </div>
+  <div class="form-section premium-panel" style="margin-top:16px"><div class="panel-head"><div><div class="eyebrow">VARIANTS / COLOUR GALLERIES</div><h3>Separate photos for every colour</h3></div><button class="btn primary" type="button" onclick="addProductColorVariant()">+ ADD COLOUR</button></div><p class="muted">Every colour has its own editable name and its own multiple-photo gallery. Use Blue, Red, White, or any name you need.</p><div id="pColorVariants">${(p.colors||[]).map((c,idx)=>productColorVariantCard(idx,c,productColorUrlsForEditor(p,c))).join('')}</div></div>
   <div class="form-section offer-editor-panel">
     <div class="panel-head"><div><div class="eyebrow">PRODUCT OFFER</div><h3>Promotion on this product</h3></div><span class="red-offer-chip">RED</span></div>
     <div class="form-grid">
@@ -388,15 +414,22 @@ window.saveProduct=i=>{
     name:document.getElementById('pName').value.trim(),category:document.getElementById('pCat').value.trim(),
     price:Number(document.getElementById('pPrice').value),mrp:Number(document.getElementById('pMrp').value),
     discount:document.getElementById('pDisc').value.trim(),barcode:document.getElementById('pBarcode').value.trim(),stock:Number(document.getElementById('pStock').value),
-    colors:document.getElementById('pColors').value.split(',').map(x=>x.trim()).filter(Boolean),
+    colors:[],
     images:document.getElementById('pImages').value.split('\n').map(x=>x.trim()).filter(Boolean),
     description:document.getElementById('pDesc').value.trim(),
-    variantVisuals:Object.fromEntries((document.getElementById('pVariantImages')?.value||'').split('\n').map(line=>line.split('|').map(x=>x.trim())).filter(x=>x.length>=2&&x[0]&&x[1]).map(x=>[x[0],{src:x[1]}])),
+    variantVisuals:{},
     features:document.getElementById('pFeatures').value.split('\n').map(x=>x.trim()).filter(Boolean),
     rating:i===null?5:state.products[i].rating,reviews:i===null?0:state.products[i].reviews,
     sizes:Object.fromEntries(['S','M','L','XL','XXL'].map(s=>[s,document.getElementById(`size_${s}`).checked])),
     offer
   };
+  const seenColors=new Set();
+  for(const card of document.querySelectorAll('#pColorVariants .p-color-variant')){
+    const name=card.querySelector('.p-color-name')?.value.trim();if(!name)continue;
+    const nameKey=name.toLocaleLowerCase();if(seenColors.has(nameKey)){toast(`Colour name duplicated: ${name}`);return;}seenColors.add(nameKey);
+    const urls=(card.querySelector('.p-color-urls')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    p.colors.push(name);p.variantVisuals[name]={src:urls[0]||'',images:urls};
+  }
   if(i===null)state.products.unshift(p);else state.products[i]=p;
   save();toast('Product saved');renderBody();
 }

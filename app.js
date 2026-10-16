@@ -50,15 +50,17 @@ function restoreCartBackup(st){try{const backup=readCartBackup();if((!Array.isAr
 let state=loadState();
 restoreCartBackup(state);
 function ensureVariantVisuals(){
-  const tee=state.products?.find(p=>p.id==='KE001');
-  if(!tee)return;
-  tee.colors=Array.from(new Set([...(tee.colors||[]),'Black','White','Red']));
-  tee.variantVisuals=Object.assign({
-    Black:{src:'https://images.unsplash.com/photo-1583743814966-8936f37f9d7e?auto=format&fit=crop&w=1000&q=85',filter:'none'},
-    White:{src:IMG.tshirt,filter:'none'},
-    Red:{src:IMG.tshirt,filter:'hue-rotate(310deg) saturate(2.1) brightness(.86)'},
-    Silver:{src:IMG.tshirt,filter:'grayscale(.75) brightness(1.24)'}
-  },tee.variantVisuals||{});
+  // Preserve Admin-defined colour names and galleries; never inject demo colour choices.
+  for(const p of state.products||[]){
+    const source=p.variantVisuals&&typeof p.variantVisuals==='object'?p.variantVisuals:{};
+    const visuals={};
+    for(const [name,raw] of Object.entries(source)){
+      const v=typeof raw==='string'?{src:raw,images:[raw]}:(raw&&typeof raw==='object'?raw:{});
+      const images=Array.isArray(v.images)?v.images.map(x=>String(x||'').trim()).filter(Boolean):(v.src?[String(v.src).trim()]:[]);
+      visuals[name]={...v,src:String(v.src||images[0]||''),images};
+    }
+    p.variantVisuals=visuals;
+  }
 }
 function hydrateState(){
   state.settings=state.settings||{};
@@ -145,10 +147,23 @@ function ratingText(p){const r=realRating(p);return r?`★ ${r.avg} · ${r.n} re
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
 function imgFallback(){event?.target?.style && (event.target.style.opacity='.35')}
-function product(id){return state.products.find(p=>p.id===id)}
+function product(id){return state.products.find(p=>String(p.id)===String(id))}
+function matchingProductColor(p,color){const wanted=String(color??'').trim().toLocaleLowerCase();return (Array.isArray(p?.colors)?p.colors:[]).find(c=>String(c??'').trim().toLocaleLowerCase()===wanted)||null}
+function productColorVisual(p,color){const wanted=String(color??'').trim().toLocaleLowerCase();const found=Object.entries(p?.variantVisuals||{}).find(([name])=>String(name).trim().toLocaleLowerCase()===wanted);if(!found)return {};const raw=found[1];return typeof raw==='string'?{src:raw,images:[raw]}:(raw&&typeof raw==='object'?raw:{})}
+function productVariantImages(p,color){const visual=productColorVisual(p,color);const mapped=Array.isArray(visual.images)?visual.images.map(x=>String(x||'').trim()).filter(Boolean):[];if(mapped.length)return mapped;if(visual.src)return [String(visual.src)];return (Array.isArray(p?.images)?p.images:[]).map(x=>String(x||'').trim()).filter(Boolean)}
+function productVariantImage(p,color){return productVariantImages(p,color)[0]||p?.images?.[0]||p?.image||''}
 function totalItems(){return state.cart.reduce((a,x)=>a+x.qty,0)}
 function toggleWishlist(id){state.wishlist=state.wishlist.includes(id)?state.wishlist.filter(x=>x!==id):[...state.wishlist,id];save();render();toast(state.wishlist.includes(id)?'Added to wishlist':'Removed from wishlist')}
-function addToBag(id,size,color='Black'){const p=product(id);if(!p){toast('Product is no longer available');return false}if(!size||!p.sizes?.[size]){toast('Please select an available size');return false}if(p.colors?.length&&!p.colors.includes(color))color=p.colors[0];const currentPrice=Number(p.price)||0;if(currentPrice<=0){toast('Product price is not available');return false}const line=state.cart.find(x=>x.id===id&&x.size===size&&x.color===color);if(line){line.qty=Math.max(1,Number(line.qty||1))+1;line.unitPrice=currentPrice;}else state.cart.push({id,size,color,qty:1,unitPrice:currentPrice});save();toast('✓ Added to bag');render();setTimeout(()=>{const b=document.querySelector('.nav-actions .icon-btn[title="Bag"]');if(b){b.classList.remove('bag-pop');void b.offsetWidth;b.classList.add('bag-pop');}},80);return true;}
+function addToBag(id,size,color='Black'){
+  const p=product(id);if(!p){toast('Product is no longer available');return false}
+  if(!size||!p.sizes?.[size]){toast('Please select an available size');return false}
+  if(Array.isArray(p.colors)&&p.colors.length){const matched=matchingProductColor(p,color);if(!matched){toast('Please select an available colour');return false}color=String(matched)}else color=String(color||'').trim();
+  const currentPrice=Number(p.price)||0;if(currentPrice<=0){toast('Product price is not available');return false}
+  const image=productVariantImage(p,color);
+  const line=state.cart.find(x=>x.id===id&&x.size===size&&String(x.color||'').toLocaleLowerCase()===String(color||'').toLocaleLowerCase());
+  if(line){line.qty=Math.max(1,Number(line.qty||1))+1;line.unitPrice=currentPrice;line.image=image;}else state.cart.push({id,size,color,image,qty:1,unitPrice:currentPrice});
+  save();toast('✓ Added to bag');render();setTimeout(()=>{const b=document.querySelector('.nav-actions .icon-btn[title="Bag"]');if(b){b.classList.remove('bag-pop');void b.offsetWidth;b.classList.add('bag-pop');}},80);return true;
+}
 function changeQty(i,d){state.cart[i].qty+=d;if(state.cart[i].qty<=0)state.cart.splice(i,1);save();render()}
 function getDiscountCode(){return document.querySelector('#coupon')?.value?.trim().toUpperCase()||''}
 function discountAmount(sub,c){return c==='KRYVEN10'?Math.round(sub*.10):0}
@@ -211,18 +226,18 @@ function legacyFooter(){return `<footer class="footer" id="support"><div class="
 function legacyProductDetail(p){
   const selected=window.__pageSelected?.size||'';
   const color=window.__pageSelected?.color||p.colors?.[0]||'Black';
-  const visual=(p.variantVisuals&&p.variantVisuals[color])||{};
-  const vf=visual.filter||'none';
-  const mainVisual=visual.src||p.images?.[0]||IMG.tshirt;
+  const visual=productColorVisual(p,color);
+  const galleryImages=productVariantImages(p,color);
+  const mainVisual=galleryImages[0]||visual.src||IMG.tshirt;
   return `<div class="product-detail-full">
     <div class="product-layout">
       <div class="gallery product-gallery-swipe">
-        <div class="thumbs product-swipe-thumbs">${(p.images||[]).map((im,i)=>`<button class="thumb product-swipe-thumb ${i===0?'active':''}" type="button" onclick="setProductPageGalleryImage('${esc(p.id)}',${i})"><img src="${esc(im)}" alt="${esc(p.name)} photo ${i+1}"></button>`).join('')}</div>
+        <div class="thumbs product-swipe-thumbs">${galleryImages.map((im,i)=>`<button class="thumb product-swipe-thumb ${i===0?'active':''}" type="button" onclick="setProductPageGalleryImage('${esc(p.id)}',${i})"><img src="${esc(im)}" alt="${esc(p.name)} ${esc(color)} photo ${i+1}"></button>`).join('')}</div>
         <div class="main-shot swipe-stage product-page-swipe-stage" data-product="${esc(p.id)}" data-index="0">
           <button class="swipe-arrow swipe-arrow-left" type="button" aria-label="Previous photo" onclick="productPageSwipePrev('${esc(p.id)}')">‹</button>
-          <img id="productPageMain" src="${esc(mainVisual)}" style="filter:${vf}" alt="${esc(p.name)}">
+          <img id="productPageMain" src="${esc(mainVisual)}" style="filter:${visual.filter||'none'}" alt="${esc(p.name)} ${esc(color)}">
           <button class="swipe-arrow swipe-arrow-right" type="button" aria-label="Next photo" onclick="productPageSwipeNext('${esc(p.id)}')">›</button>
-          <div class="swipe-dots">${(p.images||[]).map((_,i)=>`<button class="product-swipe-dot ${i===0?'active':''}" type="button" onclick="setProductPageGalleryImage('${esc(p.id)}',${i})" aria-label="Photo ${i+1}"></button>`).join('')}</div>
+          <div class="swipe-dots">${galleryImages.map((_,i)=>`<button class="product-swipe-dot ${i===0?'active':''}" type="button" onclick="setProductPageGalleryImage('${esc(p.id)}',${i})" aria-label="Photo ${i+1}"></button>`).join('')}</div>
           <div class="swipe-hint">SWIPE LEFT / RIGHT</div>
         </div>
       </div>
@@ -232,7 +247,7 @@ function legacyProductDetail(p){
         <div class="price-row"><div class="price">${money(p.price)}</div><div class="mrp">${money(p.mrp)}</div><div class="discount">${esc(p.discount)}</div></div>
         <p class="desc">${esc(p.description)}</p>
         <div class="detail-label">Colour</div>
-        <div class="opt-row product-page-colours" id="pageColorOptions">${(p.colors||[]).map((c)=>`<button class="opt ${c===color?'selected':''}" type="button" onclick="selectProductPageColor('${esc(c)}')">${esc(c)}</button>`).join('')}</div>
+        <div class="opt-row product-page-colours" id="pageColorOptions">${(p.colors||[]).map((c,i)=>`<button class="opt ${String(c).toLocaleLowerCase()===String(color).toLocaleLowerCase()?'selected':''}" type="button" data-color-index="${i}" onclick="selectProductPageColorByIndex(${i})">${esc(c)}</button>`).join('')}</div>
         <div class="detail-label">Size · availability</div>
         <div class="opt-row" id="pageSizeOptions">${Object.entries(p.sizes||{}).map(([sz,on])=>`<button class="opt ${on?(sz===selected?'selected':''):'disabled'}" type="button" ${on?`onclick="selectProductPageSize('${esc(sz)}')"`:'disabled'}>${esc(sz)}${on?'':' · Out'}</button>`).join('')}</div>
         <div class="product-actions"><button class="btn primary" type="button" onclick="confirmPageAdd('${esc(p.id)}')">Add to Bag</button><button class="btn" type="button" onclick="buyNowFromPage('${esc(p.id)}')">Buy Now</button></div>
@@ -257,7 +272,7 @@ function pageShell(title,content){return `${header()}<main class="container page
 function legacyBagPage(){
   if(!state.cart.length) return `<div class="empty-state bag-empty"><div class="eyebrow">YOUR BAG</div><h2>EMPTY FOR NOW.</h2><p class="muted">The next piece of your era is waiting.</p><a class="btn primary" href="shop.html">EXPLORE COLLECTION →</a></div>`;
   const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0);
-  return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-line"><img src="${p.images[0]}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3><p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'-')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(sub)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(sub+state.settings.shipping)}</b></div><button class="btn primary" style="width:100%;margin-top:14px" onclick="openCheckout()">PROCEED TO CHECKOUT →</button></aside></div>`;
+  return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-line"><img src="${esc(x.image||productVariantImage(p,x.color)||p.images?.[0]||'')}" alt="${esc(p.name)} ${esc(x.color||'')}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3><p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'-')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(sub)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(sub+state.settings.shipping)}</b></div><button class="btn primary" style="width:100%;margin-top:14px" onclick="openCheckout()">PROCEED TO CHECKOUT →</button></aside></div>`;
 }
 
 function legacyRenderPage(){const page=document.body.dataset.page||'home'; if(page==='home') return `${header()}${hero()}${categories()}${shop()}${trust()}${footer()}${drawDrawer()}${drawModal()}`;
@@ -265,7 +280,7 @@ function legacyRenderPage(){const page=document.body.dataset.page||'home'; if(pa
  if(page==='categories') return pageShell('Categories',categories());
  if(page==='product'){const p=product(new URLSearchParams(location.search).get('id')||state.products[0]?.id); return pageShell('Product Details',p?productDetail(p):'<div class="empty-state">Product not found.</div>');}
  if(page==='wishlist'){const items=state.products.filter(p=>state.wishlist.includes(p.id)); return pageShell('Wishlist',`<div class="product-grid">${items.length?items.map(productCard).join(''):'<div class="empty-state">Your wishlist is empty. Tap ♡ on any product to save it.</div>'}</div>`);}
- if(page==='bag'){const rows=state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-item"><img src="${p.images[0]}"/><div><b>${esc(p.name)}</b><div class="muted">${x.color} · ${x.size}</div><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join(''); return pageShell('Your Bag',`<div class="bag-page">${rows||'<div class="empty-state">Your bag is empty.</div>'}${state.cart.length?`<button class="btn primary" onclick="openCheckout()">Proceed to Checkout →</button>`:''}</div>`);}
+ if(page==='bag'){const rows=state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-item"><img src="${esc(x.image||productVariantImage(p,x.color))}"/><div><b>${esc(p.name)}</b><div class="muted">${esc(x.color)} · ${esc(x.size)}</div><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join(''); return pageShell('Your Bag',`<div class="bag-page">${rows||'<div class="empty-state">Your bag is empty.</div>'}${state.cart.length?`<button class="btn primary" onclick="openCheckout()">Proceed to Checkout →</button>`:''}</div>`);}
  if(page==='checkout') return pageShell('Checkout',state.cart.length?checkoutMarkup():'<div class="empty-state">Your bag is empty.</div>');
  if(page==='customer') return pageShell('Customer Details',customerPage());
  if(page==='tracking') return pageShell('Track Order',trackingPage());
@@ -332,15 +347,12 @@ window.openCategory=(cat)=>{if(cat==='All'){location.href='shop.html';return}loc
 window.openProduct=(id)=>{closeSearchOverlay();if(id)location.href='product.html?id='+encodeURIComponent(id)};
 function reviewHTML(r){return `<div class="review"><div class="review-head"><div><b>${esc(r.name||'Kryven Customer')}</b><div class="muted">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div></div><span class="muted">Verified purchase</span></div><p style="color:#ccc;font-size:12px;line-height:1.7">${esc(r.text)}</p>${r.photos?.length?`<div class="review-photo">${r.photos.map(x=>`<img src="${x}"/>`).join('')}</div>`:''}</div>`}
 function setProductPageGalleryImage(productId,index){
-  const p=product(productId); if(!p||!p.images?.length)return;
-  const i=((Number(index)||0)%p.images.length+p.images.length)%p.images.length;
-  const stage=document.querySelector(`.product-page-swipe-stage[data-product="${CSS.escape(productId)}"]`);
-  const img=document.getElementById('productPageMain');
-  if(stage)stage.dataset.index=i;
-  if(img)img.src=p.images[i];
-  document.querySelectorAll('#pageColorOptions .opt').forEach(b=>b.classList.toggle('selected',false));
-  document.querySelectorAll('.product-swipe-thumb').forEach((b,n)=>b.classList.toggle('active',n===i));
-  document.querySelectorAll('.product-swipe-dot').forEach((b,n)=>b.classList.toggle('active',n===i));
+  const p=product(productId);if(!p)return;
+  const color=window.__pageSelected?.color||p.colors?.[0]||'';const images=productVariantImages(p,color);if(!images.length)return;
+  const i=((Number(index)||0)%images.length+images.length)%images.length;
+  const stage=document.querySelector(`.product-page-swipe-stage[data-product="${CSS.escape(productId)}"]`);const img=document.getElementById('productPageMain');
+  if(stage)stage.dataset.index=i;if(img){img.src=images[i];img.style.filter=productColorVisual(p,color).filter||'none';}
+  document.querySelectorAll('.product-swipe-thumb').forEach((b,n)=>b.classList.toggle('active',n===i));document.querySelectorAll('.product-swipe-dot').forEach((b,n)=>b.classList.toggle('active',n===i));
 }
 window.setProductPageGalleryImage=setProductPageGalleryImage;
 function bindProductPageSwipe(productId){
@@ -348,30 +360,41 @@ function bindProductPageSwipe(productId){
   if(stage.dataset.bound==='1')return; stage.dataset.bound='1';
   let startX=0,startY=0;
   stage.addEventListener('touchstart',e=>{const t=e.touches?.[0];if(!t)return;startX=t.clientX;startY=t.clientY},{passive:true});
-  stage.addEventListener('touchend',e=>{const t=e.changedTouches?.[0];if(!t)return;const dx=t.clientX-startX,dy=t.clientY-startY;if(Math.abs(dx)<45||Math.abs(dx)<=Math.abs(dy))return;const p=product(productId);if(!p?.images?.length)return;const current=Number(stage.dataset.index||0);const next=dx>0?current+1:current-1;setProductPageGalleryImage(productId,next)},{passive:true});
+  stage.addEventListener('touchend',e=>{const t=e.changedTouches?.[0];if(!t)return;const dx=t.clientX-startX,dy=t.clientY-startY;if(Math.abs(dx)<45||Math.abs(dx)<=Math.abs(dy))return;const p=product(productId);if(!p)return;const images=productVariantImages(p,window.__pageSelected?.color||p.colors?.[0]||'');if(!images.length)return;const current=Number(stage.dataset.index||0);const next=dx>0?current+1:current-1;setProductPageGalleryImage(productId,next)},{passive:true});
 }
 window.productPageSwipeNext=id=>{const stage=document.querySelector(`.product-page-swipe-stage[data-product="${CSS.escape(id)}"]`);if(!stage)return;setProductPageGalleryImage(id,Number(stage.dataset.index||0)+1)};
 window.productPageSwipePrev=id=>{const stage=document.querySelector(`.product-page-swipe-stage[data-product="${CSS.escape(id)}"]`);if(!stage)return;setProductPageGalleryImage(id,Number(stage.dataset.index||0)-1)};
 window.setMainImage=(i,id)=>setProductPageGalleryImage(id,i);
-window.selectProductPageSize=(s)=>{if(window.__pageSelected)window.__pageSelected.size=s;document.querySelectorAll('#pageSizeOptions .opt').forEach(b=>b.classList.toggle('selected',b.textContent.trim()===s));};
-window.selectProductPageColor=(c)=>{if(window.__pageSelected)window.__pageSelected.color=c;const p=product(window.__pageSelected?.id||new URLSearchParams(location.search).get('id'));const img=document.getElementById('productPageMain');if(p&&img){const v=p.variantVisuals&&p.variantVisuals[c];if(v?.src)img.src=v.src;else if(p.images?.[0])img.src=p.images[0];img.style.filter=v?.filter||({Black:'brightness(.30) contrast(1.15)',White:'brightness(1.08) contrast(.92)',Red:'hue-rotate(310deg) saturate(2.1) brightness(.86)',Silver:'grayscale(.75) brightness(1.24)'}[c]||'none');}document.querySelectorAll('#pageColorOptions .opt').forEach(b=>b.classList.toggle('selected',b.textContent.trim()===c));};
+window.selectProductPageSize=(s)=>{if(window.__pageSelected)window.__pageSelected.size=s;document.querySelectorAll('#pageSizeOptions .opt').forEach(b=>b.classList.toggle('selected',b.dataset.size===s||b.textContent.trim().split(' · ')[0]===s));};
+window.selectProductPageColor=(c)=>{
+  const p=product(window.__pageSelected?.id||new URLSearchParams(location.search).get('id'));if(!p)return;
+  const color=matchingProductColor(p,c)||c;if(window.__pageSelected)window.__pageSelected.color=color;
+  const images=productVariantImages(p,color),visual=productColorVisual(p,color);const img=document.getElementById('productPageMain'),stage=document.querySelector(`.product-page-swipe-stage[data-product="${CSS.escape(p.id)}"]`);
+  if(stage)stage.dataset.index='0';if(img&&images.length){img.src=images[0];img.style.filter=visual.filter||'none';}
+  const thumbs=document.querySelector('.product-swipe-thumbs');if(thumbs)thumbs.innerHTML=images.map((im,i)=>`<button class="thumb product-swipe-thumb ${i===0?'active':''}" type="button" onclick="setProductPageGalleryImage('${esc(p.id)}',${i})"><img src="${esc(im)}" alt="${esc(p.name)} ${esc(color)} photo ${i+1}"></button>`).join('');
+  const dots=document.querySelector('.product-page-swipe-stage .swipe-dots');if(dots)dots.innerHTML=images.map((_,i)=>`<button class="product-swipe-dot ${i===0?'active':''}" type="button" onclick="setProductPageGalleryImage('${esc(p.id)}',${i})" aria-label="Photo ${i+1}"></button>`).join('');
+  document.querySelectorAll('#pageColorOptions .opt').forEach((b,i)=>b.classList.toggle('selected',String(p.colors?.[i]||'').toLocaleLowerCase()===String(color).toLocaleLowerCase()));
+};
+window.selectProductPageColorByIndex=(i)=>{const p=product(window.__pageSelected?.id||new URLSearchParams(location.search).get('id'));if(p?.colors?.[i]!==undefined)window.selectProductPageColor(p.colors[i]);};
 window.selectProductSize=window.selectProductPageSize;
 window.selectProductColor=window.selectProductPageColor;
-window.confirmPageAdd=(id)=>{const sel=window.__pageSelected||{};const p=product(id);const size=sel.size||'';const color=sel.color||p?.colors?.[0]||'Black';if(!p||!size||!p.sizes?.[size]){toast('Please select your size before adding to bag');document.getElementById('pageSizeOptions')?.scrollIntoView({behavior:'smooth',block:'center'});return}addToBag(id,size,color);};
-window.buyNowFromPage=(id)=>{window.confirmPageAdd(id);setTimeout(()=>{if(state.cart.length)window.openCheckout()},80)};
+window.confirmPageAdd=(id)=>{const sel=window.__pageSelected||{};const p=product(id);const size=sel.size||'';const color=sel.color||p?.colors?.[0]||'Black';if(!p||!size||!p.sizes?.[size]){toast('Please select your size before adding to bag');document.getElementById('pageSizeOptions')?.scrollIntoView({behavior:'smooth',block:'center'});return false}return addToBag(id,size,color);};
+window.buyNowFromPage=(id)=>{const added=window.confirmPageAdd(id);if(!added)return;setTimeout(()=>{if(state.cart.length)window.openCheckout()},80)};
 
 window.quickAddToBag=(id)=>{
   const p=product(id); if(!p)return;
   const sizes=Object.entries(p.sizes||{}).filter(([,on])=>on).map(([s])=>s);
   const colors=p.colors||['Black'];
+  window.__quickProductId=id;
   openModal(`<div class="modal-top"><div><div class="eyebrow">QUICK ADD</div><h3 style="margin:0">${esc(p.name)}</h3></div><button class="drawer-close" onclick="closeModal()">×</button></div>
-  <div style="padding:22px"><img src="${esc(p.images?.[0]||'')}" style="width:100%;max-height:260px;object-fit:contain;border-radius:16px;background:#111" alt="">
-  <div class="detail-label" style="margin-top:18px">COLOUR</div><div class="opt-row" id="quickColors">${colors.map((c,i)=>`<button class="opt ${i===0?'selected':''}" type="button" onclick="window.__quickColor='${esc(c)}';document.querySelectorAll('#quickColors .opt').forEach(b=>b.classList.toggle('selected',b.textContent.trim()==='${esc(c)}'))">${esc(c)}</button>`).join('')}</div>
+  <div style="padding:22px"><img id="quickColorPreview" src="${esc(productVariantImage(p,colors[0]||'Black'))}" style="width:100%;max-height:260px;object-fit:contain;border-radius:16px;background:#111" alt="${esc(p.name)}">
+  <div class="detail-label" style="margin-top:18px">COLOUR</div><div class="opt-row" id="quickColors">${colors.map((c,i)=>`<button class="opt ${i===0?'selected':''}" type="button" data-color-index="${i}" onclick="selectQuickColorByIndex(${i})">${esc(c)}</button>`).join('')}</div>
   <div class="detail-label">SIZE</div><div class="opt-row" id="quickSizes">${sizes.map((s,i)=>`<button class="opt" type="button" onclick="window.__quickSize='${esc(s)}';document.querySelectorAll('#quickSizes .opt').forEach(b=>b.classList.toggle('selected',b.textContent.trim()==='${esc(s)}'))">${esc(s)}</button>`).join('')}</div>
   <button class="btn primary" style="width:100%;margin-top:18px" onclick="addQuickSelection('${esc(id)}')">ADD TO BAG →</button></div>`);
   window.__quickSize=''; window.__quickColor=colors[0]||'Black';
 };
-window.addQuickSelection=(id)=>{if(!window.__quickSize){toast('Please select an available size');return}addToBag(id,window.__quickSize,window.__quickColor||'Black');closeModal();};
+window.selectQuickColorByIndex=(i)=>{const p=product(window.__quickProductId);const color=p?.colors?.[Number(i)];if(color===undefined)return;window.__quickColor=color;document.querySelectorAll('#quickColors .opt').forEach((b,j)=>b.classList.toggle('selected',j===Number(i)));const preview=document.getElementById('quickColorPreview');if(preview)preview.src=productVariantImage(p,color);};
+window.addQuickSelection=(id)=>{if(!window.__quickSize){toast('Please select an available size');return}const added=addToBag(id,window.__quickSize,window.__quickColor||'Black');if(added)closeModal();};
 function openBag(){location.href='bag.html'}
 window.openBag=openBag; window.changeQty=changeQty;
 
@@ -513,7 +536,7 @@ window.placeOrder=async()=>{
     const name=document.getElementById('coName').value.trim(),phone=document.getElementById('coPhone').value.trim(),address=document.getElementById('coAddress').value.trim(),city=document.getElementById('coCity').value.trim(),pincode=document.getElementById('coPin').value.trim();
     if(!name||!phone||!address||!city||!pincode){toast('Please fill all shipping details');return}
     const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0),discount=discountAmount(sub,getDiscountCode()),payment=document.querySelector('input[name=pay]:checked')?.value||'cod',id='KE-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*900)+100);
-    const order={id,createdAt:new Date().toISOString(),customer:{name,email:state.profile.email||'',phone,address,city,pincode,customerId:getCustomerId()},items:structuredClone(state.cart).map(x=>({...x,image:product(x.id)?.images?.[0]||''})),subtotal:sub,discount,total:sub-discount+state.settings.shipping,payment,status:'Placed'};
+    const order={id,createdAt:new Date().toISOString(),customer:{name,email:state.profile.email||'',phone,address,city,pincode,customerId:getCustomerId()},items:structuredClone(state.cart).map(x=>({...x,image:x.image||productVariantImage(product(x.id),x.color)||product(x.id)?.images?.[0]||''})),subtotal:sub,discount,total:sub-discount+state.settings.shipping,payment,status:'Placed'};
     const saved=await finalizeOrder(order,payment==='upi');
     if(saved && payment==='upi')setTimeout(()=>showUPIPayment(order),50);
   }finally{
@@ -667,19 +690,19 @@ function footer(){return `<footer class="footer premium-footer"><div class="cont
 function productDetail(p){
   const selected=window.__pageSelected?.size||'';
   const color=window.__pageSelected?.color||p.colors?.[0]||'Black';
-  const visual=(p.variantVisuals&&p.variantVisuals[color])||{};
-  const vf=visual.filter||'none';
-  const mainVisual=visual.src||p.images?.[0]||IMG.tshirt;
+  const visual=productColorVisual(p,color);
+  const galleryImages=productVariantImages(p,color);
+  const mainVisual=galleryImages[0]||visual.src||IMG.tshirt;
   const recommended=[...state.products.filter(x=>x.id!==p.id&&x.category===p.category),...state.products.filter(x=>x.id!==p.id&&x.category!==p.category)].slice(0,4);
   return `<div class="product-detail-full premium-product-detail">
     <div class="product-layout">
       <div class="gallery product-gallery-swipe">
-        <div class="thumbs product-swipe-thumbs">${(p.images||[]).map((im,i)=>`<button class="thumb product-swipe-thumb ${i===0?'active':''}" type="button" onclick="setProductPageGalleryImage('${esc(p.id)}',${i})"><img src="${esc(im)}" alt="${esc(p.name)} photo ${i+1}"></button>`).join('')}</div>
+        <div class="thumbs product-swipe-thumbs">${galleryImages.map((im,i)=>`<button class="thumb product-swipe-thumb ${i===0?'active':''}" type="button" onclick="setProductPageGalleryImage('${esc(p.id)}',${i})"><img src="${esc(im)}" alt="${esc(p.name)} ${esc(color)} photo ${i+1}"></button>`).join('')}</div>
         <div class="main-shot premium-shot swipe-stage product-page-swipe-stage" data-product="${esc(p.id)}" data-index="0">
           <button class="swipe-arrow swipe-arrow-left" type="button" aria-label="Previous photo" onclick="productPageSwipePrev('${esc(p.id)}')">‹</button>
-          <img id="productPageMain" src="${esc(mainVisual)}" style="filter:${vf}" alt="${esc(p.name)}">
+          <img id="productPageMain" src="${esc(mainVisual)}" style="filter:${visual.filter||'none'}" alt="${esc(p.name)} ${esc(color)}">
           <button class="swipe-arrow swipe-arrow-right" type="button" aria-label="Next photo" onclick="productPageSwipeNext('${esc(p.id)}')">›</button>
-          <div class="swipe-dots">${(p.images||[]).map((_,i)=>`<button class="product-swipe-dot ${i===0?'active':''}" type="button" onclick="setProductPageGalleryImage('${esc(p.id)}',${i})" aria-label="Photo ${i+1}"></button>`).join('')}</div>
+          <div class="swipe-dots">${galleryImages.map((_,i)=>`<button class="product-swipe-dot ${i===0?'active':''}" type="button" onclick="setProductPageGalleryImage('${esc(p.id)}',${i})" aria-label="Photo ${i+1}"></button>`).join('')}</div>
           <div class="swipe-hint">SWIPE LEFT / RIGHT</div>
         </div>
       </div>
@@ -689,9 +712,9 @@ function productDetail(p){
         <div class="rating-big"><span>${ratingText(p)}</span></div>
         <p class="desc">${esc(p.description)}</p>
         <div class="detail-label">COLOUR</div>
-        <div class="opt-row product-page-colours" id="pageColorOptions">${(p.colors||[]).map((c)=>`<button class="opt ${c===color?'selected':''}" type="button" onclick="selectProductPageColor('${esc(c)}')">${esc(c)}</button>`).join('')}</div>
+        <div class="opt-row product-page-colours" id="pageColorOptions">${(p.colors||[]).map((c,i)=>`<button class="opt ${String(c).toLocaleLowerCase()===String(color).toLocaleLowerCase()?'selected':''}" type="button" data-color-index="${i}" onclick="selectProductPageColorByIndex(${i})">${esc(c)}</button>`).join('')}</div>
         <div class="detail-label">SIZE / AVAILABILITY</div>
-        <div class="opt-row" id="pageSizeOptions">${Object.entries(p.sizes||{}).map(([sz,on])=>`<button class="opt ${on?(sz===selected?'selected':''):'disabled'}" type="button" ${on?`onclick="selectProductPageSize('${esc(sz)}')"`:'disabled'}>${esc(sz)}${on?'':' · OUT'}</button>`).join('')}</div>
+        <div class="opt-row" id="pageSizeOptions">${Object.entries(p.sizes||{}).map(([sz,on])=>`<button class="opt ${on?(sz===selected?'selected':''):'disabled'}" type="button" data-size="${esc(sz)}" ${on?`onclick="selectProductPageSize('${esc(sz)}')"`:'disabled'}>${esc(sz)}${on?'':' · OUT'}</button>`).join('')}</div>
         <div class="product-actions"><button class="btn primary" type="button" onclick="confirmPageAdd('${esc(p.id)}')">ADD TO BAG →</button><button class="btn" type="button" onclick="buyNowFromPage('${esc(p.id)}')">BUY NOW</button></div>
         <div class="detail-trust"><span>✓ PREMIUM FABRIC</span><span>✓ SECURE CHECKOUT</span><span>✓ TRACKED DELIVERY</span></div>
       </div>
@@ -711,7 +734,7 @@ function openProduct(id){location.href=`product.html?id=${encodeURIComponent(id)
 function bagPage(){
   if(!state.cart.length) return `<div class="empty-state bag-empty"><div class="eyebrow">YOUR BAG</div><h2>EMPTY FOR NOW.</h2><p class="muted">The next piece of your era is waiting.</p><a class="btn primary" href="shop.html">EXPLORE COLLECTION →</a></div>`;
   const sub=state.cart.reduce((a,x)=>a+product(x.id).price*x.qty,0);
-  return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-line"><img src="${p.images[0]}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3><p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'-')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(sub)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(sub+state.settings.shipping)}</b></div><button class="btn primary" style="width:100%;margin-top:14px" onclick="openCheckout()">PROCEED TO CHECKOUT →</button></aside></div>`;
+  return `<div class="bag-layout"><div class="bag-list">${state.cart.map((x,i)=>{const p=product(x.id);return `<div class="bag-line"><img src="${esc(x.image||productVariantImage(p,x.color)||p.images?.[0]||'')}" alt="${esc(p.name)} ${esc(x.color||'')}"><div class="bag-line-main"><div class="eyebrow">${esc(p.category)}</div><h3>${esc(p.name)}</h3><p class="muted">${esc(x.color||'Black')} · Size ${esc(x.size||'-')}</p><div class="qty"><button onclick="changeQty(${i},-1)">−</button><span>${x.qty}</span><button onclick="changeQty(${i},1)">+</button></div></div><b>${money(p.price*x.qty)}</b></div>`}).join('')}</div><aside class="summary-card bag-summary"><div class="eyebrow">ORDER SUMMARY</div><h3>READY FOR CHECKOUT.</h3><div class="summary-row"><span>Subtotal</span><span>${money(sub)}</span></div><div class="summary-row"><span>Shipping</span><span>${money(state.settings.shipping)}</span></div><div class="summary-row total"><b>Total</b><b>${money(sub+state.settings.shipping)}</b></div><button class="btn primary" style="width:100%;margin-top:14px" onclick="openCheckout()">PROCEED TO CHECKOUT →</button></aside></div>`;
 }
 
 /* ===== KRYVEN ERA — minimal landing page ===== */
@@ -852,7 +875,7 @@ window.placeOrder=async()=>{
     const codPct=Math.max(0,Math.min(100,Number(state.settings.payments?.codAdvancePercent??20)));
     const advancePaid=payment==='cod'?Math.round(total*codPct/100):total;
     const customerId=getCustomerId();
-    const order={id,createdAt:new Date().toISOString(),customerId,customer:{id:customerId,name,email,phone,address,landmark,houseNumber,city,state:stateName,pincode},items:structuredClone(state.cart).map(x=>({...x,image:product(x.id)?.images?.[0]||'',name:product(x.id)?.name||x.id,unitPrice:Number(product(x.id)?.price||0)})),subtotal:sub,discount,total,payment,status:'Awaiting Payment Verification',advancePaid,remainingDue:Math.max(0,total-advancePaid),codAdvancePercent:payment==='cod'?codPct:null,paymentVerified:false,catalogCheckedAt:new Date().toISOString()};
+    const order={id,createdAt:new Date().toISOString(),customerId,customer:{id:customerId,name,email,phone,address,landmark,houseNumber,city,state:stateName,pincode},items:structuredClone(state.cart).map(x=>({...x,image:x.image||productVariantImage(product(x.id),x.color)||product(x.id)?.images?.[0]||'',name:product(x.id)?.name||x.id,unitPrice:Number(product(x.id)?.price||0)})),subtotal:sub,discount,total,payment,status:'Awaiting Payment Verification',advancePaid,remainingDue:Math.max(0,total-advancePaid),codAdvancePercent:payment==='cod'?codPct:null,paymentVerified:false,catalogCheckedAt:new Date().toISOString()};
     if(payment==='cod'){
       const saved=await savePlacedCODOrder(order);
       if(!saved)return;

@@ -1,0 +1,17 @@
+KRYVEN ERA — COLOUR-WISE PRODUCT PHOTOS
+
+After deploying this ZIP to Vercel:
+1. Open Admin and go to Products.
+2. Choose EDIT on the product you want to update.
+3. Under VARIANTS / COLOUR GALLERIES, each colour has its own card.
+4. Edit the colour name (for example, Blue or Midnight Blue).
+5. Upload one or more photos in that same colour card, or paste image URLs one per line.
+6. The first URL/photo is the main photo; the remaining photos are that colour's gallery.
+7. Add/remove colour cards as needed, then click Save Product.
+8. Refresh the product page and test colour + size + Add to Bag + checkout.
+
+Important:
+- Upload the actual Blue photos in the Blue card and Red photos in the Red card.
+- If a colour has no dedicated photo URL, the site uses the general product gallery as a fallback.
+- Uploading this ZIP does not itself deploy the website. Redeploy it to the connected Vercel project before testing the live domain.
+- The existing image upload uses the website's current Cloudinary configuration; this ZIP does not add or change cloud credentials.
