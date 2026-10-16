@@ -119,7 +119,10 @@ export function priceOrder(catalog,rawItems,mode,context={}){
     const sizes=p.sizes&&typeof p.sizes==='object'?p.sizes:null;
     if(sizes&&Object.keys(sizes).length&&(!line.size||sizes[line.size]!==true))throw new OrderError(`Please choose an available size for ${p.name||line.id}`);
     let color=line.color;
-    if(Array.isArray(p.colors)&&p.colors.length){if(!color)color=String(p.colors[0]);else if(!p.colors.map(String).includes(color))throw new OrderError(`Please choose an available colour for ${p.name||line.id}`)}
+    if(Array.isArray(p.colors)&&p.colors.length){
+      if(!color)color=String(p.colors[0]);
+      else {const matched=p.colors.find(c=>String(c).trim().toLocaleLowerCase()===String(color).trim().toLocaleLowerCase());if(!matched)throw new OrderError(`Please choose an available colour for ${p.name||line.id}`);color=String(matched)}
+    }
     perProduct.set(line.id,(perProduct.get(line.id)||0)+line.qty);
     const stockRaw=p.stock;
     if(stockRaw!==undefined&&stockRaw!==null&&stockRaw!==''&&Number.isFinite(Number(stockRaw))&&Number(stockRaw)>=0&&perProduct.get(line.id)>Number(stockRaw))throw new OrderError(`${p.name||line.id} has only ${Number(stockRaw)} in stock`);
@@ -143,7 +146,11 @@ export function priceOrder(catalog,rawItems,mode,context={}){
     }else{
       lineTotal+=linePrice(p,line.qty,unit,settings);
     }
-    items.push({id:line.id,name:p.name||line.id,image:p.images?.[0]||p.image||'',size:line.size,color,qty:line.qty,unitPrice:unit,originalUnitPrice:unit,lineTotal:round2(lineTotal)});
+    const rawVariant=Object.entries(p.variantVisuals||{}).find(([name])=>String(name).trim().toLocaleLowerCase()===String(color||'').trim().toLocaleLowerCase())?.[1];
+    const variant=typeof rawVariant==='string'?{src:rawVariant,images:[rawVariant]}:rawVariant;
+    const variantImages=Array.isArray(variant?.images)?variant.images.filter(Boolean):[];
+    const variantImage=variantImages[0]||variant?.src||p.images?.[0]||p.image||'';
+    items.push({id:line.id,name:p.name||line.id,image:variantImage,size:line.size,color,qty:line.qty,unitPrice:unit,originalUnitPrice:unit,lineTotal:round2(lineTotal)});
   }
   let discountBeforeCoupon=Math.max(0,subtotal-after);
   // Calculate regular/legacy offers when no membership tier or coupon has already set totals.
