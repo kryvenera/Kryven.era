@@ -1,0 +1,25 @@
+/* KRYVEN ERA — round red offer tag on product photos + membership code box */
+.ke-offer-tag{position:absolute;top:10px;left:10px;z-index:6;width:62px;height:62px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.02;color:#fff;background:radial-gradient(circle at 30% 25%,#ee3c43 0%,#d71920 55%,#9d0d12 100%);border:2px solid #fff;box-shadow:0 6px 16px rgba(157,13,18,.38);transform:rotate(-10deg);pointer-events:none;font-family:inherit}
+.ke-offer-tag b{display:block;font-weight:900;letter-spacing:.02em;text-transform:uppercase}
+.ke-offer-bogo b{font-size:10.5px}
+.ke-offer-bogo b:nth-child(3){font-size:12px;letter-spacing:.06em}
+.ke-offer-pct b:first-child{font-size:19px;letter-spacing:-.02em}
+.ke-offer-pct b:last-child{font-size:11px;letter-spacing:.12em}
+.card-media .ke-offer-tag~.pill{display:none}
+.main-shot .ke-offer-tag{top:16px;left:16px;width:78px;height:78px}
+.main-shot .ke-offer-bogo b{font-size:12.5px}
+.main-shot .ke-offer-bogo b:nth-child(3){font-size:14.5px}
+.main-shot .ke-offer-pct b:first-child{font-size:24px}
+.main-shot .ke-offer-pct b:last-child{font-size:13px}
+@media(max-width:420px){.ke-offer-tag{width:56px;height:56px;top:8px;left:8px}.ke-offer-bogo b{font-size:9.5px}.ke-offer-bogo b:nth-child(3){font-size:11px}.ke-offer-pct b:first-child{font-size:17px}}
+
+/* Home: single membership card */
+.lx-home-offers-single{grid-template-columns:1fr!important}
+
+/* Membership page */
+body[data-era-page="membership"] .era-code-card{margin-top:4px}
+.era-code-form{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 10px}
+.era-code-form .era-input{flex:1 1 220px;min-width:0;text-transform:uppercase;letter-spacing:.12em}
+.era-code-form .era-btn{flex:0 0 auto}
+.era-code-card .era-status:empty{display:none}
+.era-plans-kicker{margin:26px 0 12px}
