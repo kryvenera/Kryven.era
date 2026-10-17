@@ -9,7 +9,7 @@ export default async function handler(req,res){
     if(req.method==='GET'){
       const [requests,codes]=await Promise.all([
         db('kryven_membership_requests?select=id,user_id,name,email,phone,code,status,created_at,decided_at&order=created_at.desc&limit=300'),
-        db('kryven_membership_codes?select=code,note,enabled,max_uses,uses,created_at&order=created_at.desc&limit=300')
+        db('kryven_membership_codes?select=*&order=created_at.desc&limit=300')
       ]);
       return res.status(200).json({ok:true,requests:requests||[],codes:codes||[]});
     }
@@ -17,7 +17,7 @@ export default async function handler(req,res){
     const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});
     if(b.action==='addCode'){
       const code=sanitizeCode(b.code);if(code.length<4)return res.status(400).json({error:'Code must be at least 4 letters/numbers.'});
-      await db('kryven_membership_codes',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({code,note:String(b.note||'').slice(0,120),max_uses:Math.max(1,Math.min(1000,Number(b.maxUses)||1))})});
+      await db('kryven_membership_codes',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({code,note:String(b.note||'').slice(0,120),max_uses:Math.max(1,Math.min(1000,Number(b.maxUses)||1)),days:Math.max(1,Math.min(3650,Number(b.days)||30))})});
       return res.status(200).json({ok:true});
     }
     if(b.action==='deleteCode'){await db(`kryven_membership_codes?code=eq.${encodeURIComponent(sanitizeCode(b.code))}`,{method:'DELETE',headers:{Prefer:'return=minimal'}});return res.status(200).json({ok:true})}
