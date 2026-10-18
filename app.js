@@ -90,7 +90,7 @@ function hydrateState(){
   ensureVariantVisuals();
 }
 hydrateState();
-function save(){localStorage.setItem(KEY,JSON.stringify(state));try{if(Array.isArray(state.cart)&&state.cart.length)sessionStorage.setItem(CART_BACKUP_KEY,JSON.stringify(state.cart));else sessionStorage.removeItem(CART_BACKUP_KEY)}catch{}}
+function save(){localStorage.setItem(KEY,JSON.stringify(state));try{localStorage.setItem('kryven-era-cart-v2',JSON.stringify(Array.isArray(state.cart)?state.cart:[]));if(Array.isArray(state.cart)&&state.cart.length)sessionStorage.setItem(CART_BACKUP_KEY,JSON.stringify(state.cart));else sessionStorage.removeItem(CART_BACKUP_KEY)}catch{}}
 
 // LIVE CATALOG SYNC: the storefront reads the shared catalog from
 // public.kryven_store_state. Cart/profile/orders remain local or use their
@@ -758,7 +758,7 @@ function mnCategories(){
 function mnProducts(){
   const list=state.products.slice(0,8);
   return `<section class="mn-products" id="shop"><div class="mn-wrap"><div class="mn-head"><h2>New arrivals</h2>${state.products.length>list.length?'<a href="shop.html">View all</a>':'<a href="shop.html">Shop all</a>'}</div>
-  <div class="mn-grid">${list.map(p=>`<a class="mn-card" href="product.html?id=${encodeURIComponent(p.id)}"><div class="mn-img"><img loading="lazy" src="${esc(p.images?.[0]||IMG.tshirt)}" alt="${esc(p.name)}" onerror="imgFallback()"></div><div class="mn-meta"><span class="mn-name">${esc(p.name)}</span><span class="mn-price">${money(p.price)}${Number(p.mrp)>Number(p.price)?`<s>${money(p.mrp)}</s>`:''}</span>${eraPriceHTML(p)}</div>${mnSoldOut(p)?'<div class="mn-sold">Sold out</div>':''}</a>`).join('')}</div></div></section>`;
+  <div class="mn-grid">${list.map(p=>`<a class="mn-card" href="product.html?id=${encodeURIComponent(p.id)}"><div class="mn-img"><img loading="lazy" src="${esc(p.images?.[0]||IMG.tshirt)}" alt="${esc(p.name)}" onerror="imgFallback()">${offerTagHTML(p)}</div><div class="mn-meta"><span class="mn-name">${esc(p.name)}</span><span class="mn-price">${money(p.price)}${Number(p.mrp)>Number(p.price)?`<s>${money(p.mrp)}</s>`:''}</span>${eraPriceHTML(p)}</div>${mnSoldOut(p)?'<div class="mn-sold">Sold out</div>':''}</a>`).join('')}</div></div></section>`;
 }
 function mnFooter(){
   const wa=String(state.settings.whatsapp||'').replace(/\D/g,'');

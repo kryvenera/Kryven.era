@@ -274,3 +274,14 @@ button,input,textarea,select{font-family:var(--ke-font)}
 /* Keep the Wear Your Era hero clean white, with no video background */
 .ke-white-hero{background:#fff!important;color:#111!important}
 .ke-white-hero .hero-media,.ke-white-hero video{display:none!important}
+
+
+/* KRYVEN ERA update: premium red offer badges on homepage cards and green member pricing. */
+.mn-img{position:relative;isolation:isolate}
+.mn-img .ke-offer-tag{top:10px;left:10px;width:58px;height:58px;z-index:3}
+.mn-img .ke-offer-pct b:first-child{font-size:18px}
+.mn-img .ke-offer-pct b:last-child{font-size:10px}
+.ke-prices .member{color:#168044!important}
+.ke-prices .member small{color:#5f7867!important}
+.ke-prices{border-top-color:#e5eee7!important}
+@media(max-width:420px){.mn-img .ke-offer-tag{width:52px;height:52px;top:8px;left:8px}}
